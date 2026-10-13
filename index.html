@@ -445,6 +445,10 @@ function renderKpis(){
 }
 
 /* ---------- tabela ---------- */
+/* ordem da tabela: data da última movimentação (mais recente primeiro); no mesmo dia, a hora em que foi registrada no site
+   (mais recente primeiro; as sem hora — vindas da planilha/RDO — depois); por fim a ordem da planilha */
+const horaMov=c=>{const s=c.movEm;return s&&c.ultimaMov&&hojeSP(Date.parse(s))===c.ultimaMov?s:""};
+const cmpRecente=(a,b)=>(b[1].ultimaMov||"").localeCompare(a[1].ultimaMov||"")||horaMov(b[1]).localeCompare(horaMov(a[1]))||(a[1].ordem??9e9)-(b[1].ordem??9e9);
 function renderRows(){
   const tb=$("#rows");const L=lastDate();const dias={recentes:7,r14:14,r30:30}[state.filter];const lim=dias?hojeSP(Date.now()-dias*864e5):"";
   let list=[...state.cargas.entries()];
@@ -459,7 +463,7 @@ function renderRows(){
   fillDest(list);
   if(state.dest.size)list=list.filter(([,c])=>state.dest.has(destKey(c.destino)));
   const q=norm(state.q);if(q)list=list.filter(([,c])=>norm([c.tag,c.eslinga,c.destino,c.responsavel,c.local,c.obs,c.ufEmb].join(" ")).includes(q));
-  list.sort((a,b)=>(b[1].ultimaMov||"").localeCompare(a[1].ultimaMov||"")||(a[1].ordem??9e9)-(b[1].ordem??9e9));
+  list.sort(cmpRecente);
   state.lastList=list;
   if(!list.length){tb.innerHTML=`<tr><td colspan="21" class="empty">${state.cargas.size?"Nenhuma carga neste filtro.":"As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira."}</td></tr>`;return}
   tb.innerHTML=list.map(([id,c])=>{
@@ -598,7 +602,7 @@ async function gerarRelatorio(modo){
   const PW=841.89,PH=595.28,M=24,INK=hex("#14212e"),MUT=hex("#5b6b7a"),NAVY=hex("#14304a"),LINE=hex("#c9d2db");
   const on=onboard(),nav=on.filter(([,c])=>isGC(c)||isFrat(c)).length,m2=on.reduce((a,[,c])=>a+(sizeOf(c)||0),0);
   const emit=fmtDT(Date.now()),L=lastDate();
-  let rows=modo==="tabela"&&state.lastList?state.lastList:[...on].sort((a,b)=>(b[1].ultimaMov||"").localeCompare(a[1].ultimaMov||"")||(a[1].ordem??9e9)-(b[1].ordem??9e9));
+  let rows=modo==="tabela"&&state.lastList?state.lastList:[...on].sort(cmpRecente);
   const FN={prox:"Próximas movimentações",bordo:"A bordo",recentes:"Movimentadas (7 dias)",r14:"Movimentadas (14 dias)",r30:"Movimentadas (30 dias)",todas:"Todas"};
   const desc=modo==="tabela"?`Como exibido na tabela: ${FN[state.filter]||""}${state.local?" · Local: "+state.local:""}${state.dest.size?" · Destino: "+[...state.dest].join(", "):""}${state.q?" · Busca: "+state.q:""}`:"Cargas a bordo do Sayan Polaris";
   let page,y;const pages=[];
@@ -677,16 +681,16 @@ function events(){
   const ev=[];
   for(const [id,c] of state.cargas){
     /* ano: linhas vêm da mais recente para a mais antiga; sem ano explícito, herda o ano da linha de cima e volta um ano quando o mês "pula para frente" */
-    let cy=+(c.ultimaMov||c.dataReceb||hojeSP()).slice(0,4),prevD=null,idx=-1;
+    let cy=+(c.ultimaMov||c.dataReceb||hojeSP()).slice(0,4),prevD=null,idx=-1,topD=null;
     for(const line of String(c.historico||"").split(/\n/)){
       const m=line.match(/^\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*-\s*(.+)$/);if(!m)continue;
       const mmdd=`${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
       if(m[3])cy=+(m[3].length===2?"20"+m[3]:m[3]);else if(prevD&&`${cy}-${mmdd}`>prevD)cy--;
       const d=`${cy}-${mmdd}`;prevD=d;idx++;
-      /* hora: só a movimentação mais recente de cada carga tem hora conhecida (registrada no site) */
-      let ts=null,show=false;if(idx===0){const src=c.movEm||c.editadoEm||null;if(src&&hojeSP(Date.parse(src))===d){ts=src;show=!!c.movEm}}
+      /* hora: a movimentação mais recente de cada carga tem hora conhecida (registrada no site); linhas do mesmo dia herdam essa hora para ficarem juntas, na ordem do histórico */
+      let ts=null,show=false;{const src=c.movEm||c.editadoEm||null;if(src&&hojeSP(Date.parse(src))===d&&(idx===0||topD===d)){ts=src;show=idx===0&&!!c.movEm}}if(idx===0)topD=d;
       const t=m[4].trim();const up=t.toUpperCase();
-      const kind=up.includes("POLARIS")?"on":(/CONV[EÉ]S|B\/L|BACKLOAD|DESEMBARQUE/.test(up)?"off":"mv");
+      const kind=/ENVIAD[AO] DO POLARIS|DESEMBARQUE/.test(up)?"off":up.includes("POLARIS")?"on":(/CONV[EÉ]S|B\/L|BACKLOAD|DESEMBARQUE/.test(up)?"off":"mv");
       ev.push({d,t,kind,tag:c.tag,id,ts,idx,show});
     }
   }
