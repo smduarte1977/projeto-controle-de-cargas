@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Projeto de Controle de Cargas — Sayan Polaris: controle de cargas e ocupação do convés.">
+<title>Controle de Cargas · Sayan Polaris</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: barra de comando no topo (navio + indicadores), abas de trabalho; o convés é desenhado em escala 1 célula = 0,6 m */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#14212e; --muted:#5b6b7a; --line:#d3dbe3; --line-2:#e6ebf0;
+  --accent:#0f5c8c; --accent-ink:#ffffff; --signal:#c2410c; --ok:#1f7a4d; --warn:#b45309;
+  --deck:#f7f9fb; --deck-grid:#dfe5ec; --deck-bay:#9aa9b8; --deck-edge:#4a5a6a;
+  --beige:#ddd9c4; --orange:#ffc000; --yellow:#fff27a; --gc:#ffff00;
+  --row-hover:#f3f6f9; --shadow:0 1px 2px rgba(20,33,46,.06),0 4px 16px rgba(20,33,46,.06);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1620; --panel:#15212d; --ink:#e6edf3; --muted:#93a4b4; --line:#2a3a4a; --line-2:#203040;
+  --accent:#4fa3d9; --accent-ink:#06121c; --signal:#f97316; --ok:#4ade80; --warn:#fbbf24;
+  --deck:#101c27; --deck-grid:#1f2f3e; --deck-bay:#5d7286; --deck-edge:#8aa0b4;
+  --beige:#4a4636; --orange:#b88a00; --yellow:#6b6420; --gc:#8a8600; --row-hover:#1b2938; --shadow:0 1px 2px rgba(0,0,0,.3);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1620; --panel:#15212d; --ink:#e6edf3; --muted:#93a4b4; --line:#2a3a4a; --line-2:#203040;
+  --accent:#4fa3d9; --accent-ink:#06121c; --signal:#f97316; --ok:#4ade80; --warn:#fbbf24;
+  --deck:#101c27; --deck-grid:#1f2f3e; --deck-bay:#5d7286; --deck-edge:#8aa0b4;
+  --beige:#4a4636; --orange:#b88a00; --yellow:#6b6420; --gc:#8a8600; --row-hover:#1b2938; --shadow:0 1px 2px rgba(0,0,0,.3);
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.wrap{max-width:1500px;margin:0 auto;padding-inline:16px;padding-block:16px 48px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.wrap>*{min-width:0}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:.01em;margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+/* topo */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.ship .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ship h1{font-size:clamp(28px,4vw,40px);line-height:1}
+.ship h1 span{color:var(--accent)}
+.kpis{display:flex;flex-wrap:wrap;gap:8px}
+.lang{display:flex;gap:4px;width:100%;justify-content:flex-end;order:-1}
+.lang button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 10px 4px 6px;font-family:var(--f-mono);font-size:11.5px;font-weight:600;color:var(--muted)}
+.lang button svg{width:22px;height:15px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.lang .themebtn{margin-right:8px;padding:4px 10px;color:var(--ink)}
+.lang .themebtn svg{width:16px;height:16px;box-shadow:none;border-radius:0}
+.lang button[aria-pressed="true"]{border-color:var(--accent);color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent)}
+
+.access{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.role{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;background:var(--line-2);color:var(--muted)}
+.role.owner{background:var(--accent);color:var(--accent-ink)}
+.role.editor{background:var(--ok);color:#fff}
+.btn.small{padding:3px 10px;font-size:12px}
+.roles{display:grid;gap:10px;padding:16px}
+.roles .r{display:grid;grid-template-columns:140px 1fr;gap:4px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:6px}
+.roles .r b{font-family:var(--f-display);font-size:17px}
+.editinfo{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;min-width:120px}
+.kpi b{display:block;font-family:var(--f-display);font-size:26px;line-height:1.05;font-weight:600}
+.kpi.kbtn{font:inherit;color:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;transition:border-color .15s,box-shadow .15s}
+.kpi.kbtn:hover{border-color:var(--accent)}
+.kpi.kbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kpi.kbtn[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+.grpb{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:3px 6px 3px 10px;font-size:12px;font-weight:600;background:transparent;cursor:pointer}
+.grpb[hidden]{display:none}
+.kpi small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.meter{height:5px;background:var(--line-2);border-radius:3px;margin-top:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+.meter i.over{background:var(--warn,#c0392b)}
+.kpct{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.kpi.pend b{color:var(--warn)}
+.kpimix{display:flex;gap:14px;align-items:center}
+.kpimix .mix{list-style:none;margin:0;padding:0 0 0 16px;border-left:1px solid var(--line);display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:14px;align-items:center}
+.kpimix .mix li{display:contents}
+.kpimix .mix span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.kpimix .mix i{width:13px;height:13px;border-radius:2px;border:1px solid rgba(0,0,0,.25);flex:none}
+.kpimix .mix em{font-style:normal;font-weight:700;font-family:var(--f-display);font-size:22px;line-height:1.1;text-align:right}
+.kpimix small{font-size:13px}
+.kpimix b{font-size:40px}
+
+/* abas */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{border:0;background:none;padding:10px 14px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.printbtn{margin-left:auto;align-self:center;display:inline-flex;align-items:center;gap:6px}
+.printbtn svg{width:16px;height:16px}
+.msel{position:relative}
+.msbtn{display:inline-flex;align-items:center;gap:8px;width:auto;min-width:150px;justify-content:space-between;cursor:pointer;text-align:left}
+.msbtn svg{width:12px;height:12px;flex:none}
+.mspop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;min-width:240px;max-height:340px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px;color:var(--ink,inherit);font-size:13px;text-transform:none;letter-spacing:0}
+.mspop label{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;cursor:pointer}
+.mspop label:hover{background:var(--row-hover,rgba(0,0,0,.05))}
+.mspop label em{margin-left:auto;font-style:normal;color:var(--muted);font-size:12px}
+.mspop .mstop{display:flex;gap:6px;padding:4px 4px 8px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.mspop .mstop button{font-size:12px;padding:4px 8px}
+th.selc,td.selc{width:30px;min-width:30px;max-width:30px;text-align:center;padding-left:4px;padding-right:4px}
+td.selc input,th.selc input{width:16px;height:16px;margin:0;cursor:pointer;accent-color:var(--accent)}
+tr.proxr td.selc{box-shadow:inset 4px 0 0 var(--accent)}
+.pxb{display:block;margin-top:3px;font-family:var(--f-mono);font-size:11px;font-weight:600;color:var(--accent);white-space:nowrap}
+td.acts{white-space:nowrap}td.acts .rowbtn+.rowbtn{margin-left:4px}
+.rowbtn.ok{border-color:#2e8b57;color:#2e8b57}.rowbtn.no{border-color:#b03a2e;color:#b03a2e}
+.selbar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 16px 10px;padding:8px 12px;border:1px solid var(--accent);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)}
+.selbar>span:first-child{margin-right:auto}
+.hhmm{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-right:4px}
+.danger{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;padding-top:12px;border-top:1px dashed var(--line)}
+.danger .hint{margin-right:auto}
+.btn.dangerbtn{border-color:#b03a2e;color:#b03a2e}
+.btn.dangerbtn.solid{background:#b03a2e;color:#fff}
+.ropts{display:grid;gap:8px;margin-top:10px}.ropts label{display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer;padding:8px 10px;border:1px solid var(--line);border-radius:6px}.ropts input{margin:0;accent-color:var(--accent,#1d6fb8)}
+.updnote{align-self:center;margin-left:8px;font-family:var(--f-mono);font-size:12px;color:var(--muted);padding:4px 10px;border:1px dashed var(--line);border-radius:4px;background:var(--panel)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+.pad{padding:16px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+.bar .group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{border:1px solid var(--line);background:var(--panel);padding:5px 10px;border-radius:999px;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn{border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:6px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.on{background:var(--signal);border-color:var(--signal);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.search{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 10px;min-width:0;width:220px;max-width:100%}
+
+/* tabela */
+.tablewrap{overflow:auto;max-height:70vh}
+table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:12.5px}
+thead th{position:sticky;top:0;z-index:2;background:#14304a;color:#fff;font-family:var(--f-display);font-size:14px;font-weight:600;letter-spacing:.03em;text-align:left;padding:8px;white-space:nowrap;border-right:1px solid rgba(255,255,255,.12)}
+tbody td{padding:6px 8px;border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);vertical-align:top;white-space:nowrap}
+tbody tr:hover td{background:var(--row-hover)}
+thead th .rz{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;z-index:3;touch-action:none}
+thead th .rz::after{content:"";position:absolute;top:20%;bottom:20%;left:3px;width:2px;border-radius:1px;background:rgba(255,255,255,.25)}
+thead th .rz:hover::after,thead th .rz.on::after{background:#7cc4ff}
+body.rzing{cursor:col-resize;user-select:none}
+#ctl.fixw td,#ctl.fixw th{overflow:hidden;text-overflow:ellipsis}
+td.hist{white-space:pre-line;min-width:260px;font-family:var(--f-mono);font-size:11.5px;line-height:1.35}
+td.num{text-align:right;font-family:var(--f-mono)}
+td.tag{font-family:var(--f-mono);font-weight:600}
+tr.last td{background:var(--beige)}
+tr.frat td{background:var(--orange);color:#1b1300}
+tr.amar td{background:var(--yellow)}
+tr.gc td{background:var(--gc);color:#1b1a00}
+tr.fora td.tag{color:var(--signal)}
+td.venc-x{color:#c00000!important;font-weight:700}
+td.venc-s{color:var(--warn)!important;font-weight:700}
+/* rotação finalizada: todas as colunas na cor do TAG */
+tr.rotf td,tr.rotf td .pxb{color:var(--signal)}
+tr.pend td.tag::after{content:"●";color:var(--warn);margin-left:6px;font-size:10px;vertical-align:middle}
+.qtd1{display:inline-block;min-width:20px;text-align:center;background:var(--ok);color:#fff;border-radius:3px;font-weight:600}
+.rowbtn{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:2px 8px;font-size:12px}
+.empty{padding:32px 16px;text-align:center;color:var(--muted)}
+
+/* formulário */
+details.add{border-top:1px solid var(--line)}
+details.add summary{cursor:pointer;padding:12px 16px;font-family:var(--f-display);font-size:18px;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+details.add summary::before{content:"+";display:inline-grid;place-items:center;width:22px;height:22px;border-radius:4px;background:var(--accent);color:var(--accent-ink);font-family:var(--f-mono)}
+details.add[open] summary::before{content:"–"}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 12px;padding:0 16px 16px}
+.form label{display:grid;gap:3px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);min-width:0}
+.form input,.form select,.form textarea{border:1px solid var(--line);border-radius:5px;background:var(--bg);padding:6px 8px;font-size:13.5px;text-transform:none;letter-spacing:0;color:var(--ink);min-width:0;width:100%}
+.form textarea{min-height:64px;font-family:var(--f-mono);font-size:12px}
+.form .wide{grid-column:1/-1}
+.form .actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hint{font-size:12px;color:var(--muted)}
+
+/* histórico */
+.timeline{display:grid;gap:14px;padding:16px}
+.day h3{font-size:18px;display:flex;gap:10px;align-items:baseline}
+.day h3 small{font-family:var(--f-body);font-size:12px;color:var(--muted);font-weight:400}
+.ev{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line-2)}
+.pill{font-family:var(--f-mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px;text-align:center;min-width:64px}
+.pill.on{background:var(--ok);color:#fff}
+.pill.off{background:var(--signal);color:#fff}
+.pill.mv{background:var(--line);color:var(--ink)}
+.ev .t{font-family:var(--f-mono);font-weight:600}
+
+/* convés */
+.deckbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+.deckscroll{overflow:auto;padding:12px 16px}
+.decklay{display:grid;grid-template-columns:minmax(0,1fr) 300px}
+.decklay>*{min-width:0}
+.deckinfo{border-left:1px solid var(--line);padding:14px 16px;font-size:13px;max-height:none}
+.deckinfo .hint{color:var(--muted,#6b7a89)}
+.deckinfo h3{margin:0 0 2px;font-family:var(--f-display);font-size:18px;display:flex;align-items:center;gap:8px}
+.deckinfo h3 i{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid var(--line)}
+.deckinfo .sub{font-size:12px;margin-bottom:10px;color:var(--muted,#6b7a89)}
+.deckinfo dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 10px;margin:0}
+.deckinfo dt{font-size:11.5px;color:var(--muted,#6b7a89);white-space:nowrap}
+.deckinfo dd{margin:0;overflow-wrap:anywhere}
+.deckinfo dd.histv{white-space:pre-line;font-family:var(--f-mono);font-size:11.5px;line-height:1.35}
+.deckinfo .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.deckinfo .pendv{margin-top:10px;font-size:12px;padding:6px 8px;border-radius:6px;background:var(--yellow)}
+.ctip{position:fixed;z-index:60;pointer-events:none;max-width:320px;background:var(--panel);color:inherit;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);padding:8px 10px;font-size:12px}
+.ctip b{font-family:var(--f-display);font-size:14px}
+.ctip dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;margin:4px 0 0}
+.ctip dt{opacity:.7;white-space:nowrap}.ctip dd{margin:0;overflow-wrap:anywhere}
+@media (max-width:900px){.decklay{grid-template-columns:minmax(0,1fr)}.deckinfo{border-left:0;border-top:1px solid var(--line)}}
+svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;touch-action:none}
+.deck .bg{fill:var(--deck);stroke:var(--deck-edge);stroke-width:.12}
+.deck .grid{stroke:var(--deck-grid);stroke-width:.04}
+.deck .bayline{stroke:var(--deck-edge);stroke-width:.16}
+.deck .baymid{stroke:var(--deck-bay);stroke-width:.07}
+.deck .baylblbg{fill:var(--deck)}
+.deck .baylbl{fill:var(--signal);font-family:var(--f-display);font-weight:700;font-size:1.6px}
+.deck .end{fill:var(--line);stroke:var(--deck-edge);stroke-width:.08}
+.deck .endtxt{fill:var(--ink);font-family:var(--f-display);font-weight:700;font-size:1.3px;letter-spacing:.05px}
+.deck .dcl{fill:#e11d1d}
+.deck .fixo rect{stroke:var(--deck-edge);stroke-width:.06;opacity:.85}
+.deck .fixo text,.deck .cg text{font-family:var(--f-body);font-weight:600;font-size:.62px;fill:#14212e;pointer-events:none}
+.deck .cg rect.box{stroke:#14212e;stroke-width:.07}
+.deck .cg.sel rect.box{stroke:var(--signal);stroke-width:.18}
+.deck rect.pxring{fill:none;stroke:#e00000;stroke-width:.26;pointer-events:none}
+.deck .pxlayer{pointer-events:none}
+.deck .cg.px text{fill:#d00000;font-weight:800}
+.legend .pxl i{background:transparent!important;border:2px solid #e00000;box-sizing:border-box}
+.deck.adjust .cg{cursor:move}
+.deck .handle{fill:var(--signal);cursor:nwse-resize}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;padding:0 16px 14px;font-size:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:10px;border:1px solid var(--line);display:inline-block}
+.scale{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+
+/* menu e modal */
+.ctx{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow);padding:4px;min-width:200px}
+.ctx button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:4px}
+.ctx button:hover{background:var(--row-hover)}
+.ctx .ttl{padding:6px 10px;font-family:var(--f-mono);font-weight:600;font-size:12px;border-bottom:1px solid var(--line-2);margin-bottom:4px}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(10,20,30,.45);display:grid;place-items:center;padding:16px}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:min(760px,100%);max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
+.modal header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.modal header h2{font-size:22px}
+.x{border:0;background:none;font-size:22px;line-height:1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;z-index:70;font-size:13px}
+.notice{padding:10px 16px;font-size:13px;background:var(--line-2);border-bottom:1px solid var(--line)}
+@media (min-width:1000px){.top .ship{flex:1 1 360px;min-width:0}.top .kpis{flex:0 0 auto;justify-content:flex-end}.top .kpi{min-width:104px}}
+@media (max-width:640px){.kpi{min-width:0;flex:1 1 40%}.kpi.kpimix{flex:1 1 100%}.search{width:100%}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="ship">
+      <div class="eyebrow">MPSV · Controle de cargas e convés</div>
+      <h1>Sayan Polaris <span>Deck Cargo Plan</span></h1>
+      <div class="hint" id="baseinfo">Carregando dados…</div>
+      <div class="access"><span class="role" id="role">Verificando acesso…</span><button class="btn small" id="b-acessos" hidden>Acessos</button><button class="btn small" id="b-login" type="button">Entrar</button></div>
+    </div>
+    <div class="kpis" aria-live="polite">
+      <button type="button" class="kpi kbtn" data-grp="pb" aria-pressed="false" title="Mostrar na tabela só as cargas Petrobras a bordo"><small>Petrobras</small><b id="k-pb">–</b></button>
+      <button type="button" class="kpi kbtn" data-grp="nav" aria-pressed="false" title="GC + Fratelli · mostrar na tabela só as cargas do navio a bordo"><small>Navio</small><b id="k-nav">–</b></button>
+      <button type="button" class="kpi kbtn" data-grp="tot" aria-pressed="false" title="Mostrar na tabela todas as cargas a bordo"><small>Total</small><b id="k-qtd">–</b></button>
+      <div class="kpi" title="Área contratada pela Petrobras: 200 m²"><small>Ocupação Petrobras</small><b id="k-pbm2">–</b><span class="kpct" id="k-pbp"></span><div class="meter"><i id="k-pbbar" style="width:0"></i></div></div>
+      <div class="kpi"><small>Última movimentação</small><b id="k-last">–</b></div>
+      <div class="kpi pend"><small>Aguardando Excel</small><b id="k-pend">–</b></div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-controle" aria-selected="true" data-tab="controle">Controle de cargas</button>
+    <button class="tab" role="tab" id="t-historico" aria-selected="false" data-tab="historico">Histórico</button>
+    <button class="tab" role="tab" id="t-deck" aria-selected="false" data-tab="deck">Visualizar deck</button>
+    <span class="updnote" id="updnote" hidden></span>
+    <button class="btn printbtn" id="b-report" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6M7 17H4v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6h-3M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Imprimir relatório</button>
+  </nav>
+
+  <section class="panel" id="p-controle">
+    <div class="notice" id="ro" hidden>Você está vendo em modo leitura: só quem tem acesso de edição pode alterar cargas.</div>
+    <div class="bar">
+      <div class="group" role="group" aria-label="Filtro">
+        <button class="chip" data-f="bordo" aria-pressed="true">A bordo</button>
+        <button class="chip" data-f="recentes" aria-pressed="false">Movimentadas (7 dias)</button>
+        <button class="chip" data-f="r14" aria-pressed="false">Movimentadas (14 dias)</button>
+        <button class="chip" data-f="r30" aria-pressed="false">Movimentadas (30 dias)</button>
+        <button class="chip" data-f="todas" aria-pressed="false">Todas</button>
+        <button class="chip" data-f="prox" aria-pressed="false">Próximas movimentações <span class="dv" id="prox-n"></span></button>
+        <button type="button" class="grpb" id="grp-x" hidden title="Remover o filtro do card"><span id="grp-l"></span> <span aria-hidden="true">✕</span></button>
+      </div>
+      <div class="group">
+        <input class="search" id="q" type="search" placeholder="Buscar TAG, destino, responsável…" aria-label="Buscar">
+        <label class="hint" for="f-local" style="display:flex;align-items:center;gap:6px">Local atual
+          <select class="search" id="f-local" style="width:auto;min-width:150px"><option value="">Todos</option></select></label>
+        <label class="hint" for="f-rot" style="display:flex;align-items:center;gap:6px">Rotação finalizada
+          <select class="search" id="f-rot" style="width:auto;min-width:130px"><option value="mostrar">Mostrar</option><option value="ocultar">Ocultar</option><option value="so">Só finalizadas</option></select></label>
+        <div class="hint msel" id="f-dest" style="display:flex;align-items:center;gap:6px"><span>Destino</span>
+          <button type="button" class="search msbtn" id="f-dest-b" aria-haspopup="true" aria-expanded="false"><span id="f-dest-l">Todos</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
+          <div class="mspop" id="f-dest-p" hidden></div></div>
+        <div class="hint msel" id="f-cols" style="display:flex;align-items:center;gap:6px"><span>Colunas</span>
+          <button type="button" class="search msbtn" id="f-cols-b" aria-haspopup="true" aria-expanded="false"><span id="f-cols-l">Todas</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
+          <div class="mspop" id="f-cols-p" hidden></div></div>
+        <button class="btn" id="b-cols" type="button">Expandir colunas</button>
+        <button class="btn" id="b-import">Importar Excel</button>
+        <input type="file" id="f-import" accept=".xlsx,.xlsm" hidden>
+      </div>
+    </div>
+    <div class="selbar" id="selbar" hidden><span><b id="sel-n">0</b> <span>carga(s) selecionada(s)</span></span>
+      <button class="btn primary" id="sel-prog" type="button">Programar próxima movimentação</button><button class="btn" id="sel-clear" type="button">Limpar seleção</button></div>
+    <div class="tablewrap">
+      <table id="ctl">
+        <thead><tr>
+          <th class="selc"><input type="checkbox" id="sel-all" aria-label="Selecionar todas as linhas visíveis"></th><th>TAG</th><th>Eslinga</th><th>Vencimento</th><th>Destino</th><th>Peso (kg)</th><th>Comp. (m)</th><th>Larg. (m)</th><th>UF Embarque</th><th>UF Desembarque</th>
+          <th>QTD</th><th>Size (m²)</th><th>M²</th><th>Recebimento</th><th>Local atual</th><th>Retorno</th><th>Responsável</th>
+          <th>Movimentações</th><th>Última mov.</th><th>Observações</th><th></th>
+        </tr></thead>
+        <tbody id="rows"><tr><td colspan="21" class="empty">As cargas da planilha oficial aparecem aqui. Use "Adicionar carga" abaixo para lançar a primeira.</td></tr></tbody>
+      </table>
+    </div>
+    <details class="add" id="addbox">
+      <summary>Adicionar carga</summary>
+      <form class="form" id="f-add" autocomplete="off"></form>
+    </details>
+  </section>
+
+  <section class="panel" id="p-historico" hidden>
+    <div class="bar">
+      <div><h2 style="font-size:20px;margin:0">Movimentações registradas</h2><div class="hint" id="h-tz" style="margin-top:2px">Datas no horário de São Paulo (UTC−3, BRT) · hoje: <span class="dv" id="h-hoje"></span></div></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><input class="search" id="qh" type="search" placeholder="Buscar TAG (ex.: CISA 0870030, TRCU 107)" aria-label="Buscar TAG no histórico" style="min-width:300px"><span class="hint dv" id="qh-n"></span></div>
+    </div>
+    <div class="timeline" id="timeline"><div class="empty">O histórico é montado a partir da coluna de movimentações de cada carga.</div></div>
+  </section>
+
+  <section class="panel" id="p-deck" hidden>
+    <div class="deckbar">
+      <div class="group" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="b-adjust">Ajustar local das cargas</button>
+        <button class="btn primary" id="b-adddeck">Adicionar carga ao deck</button>
+      </div>
+      <div class="scale">Convés 49,2 m × 18,25 m · 1 quadrado = 0,6 m · botão direito na carga para editar</div>
+    </div>
+    <div class="decklay">
+      <div class="deckmain">
+        <div class="deckscroll"><svg class="deck" id="deck" viewBox="-3 -3 89 36" role="img" aria-label="Convés do Sayan Polaris com as cargas"></svg></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <aside class="deckinfo" id="deckinfo" aria-live="polite"></aside>
+    </div>
+  </section>
+</div>
+
+<div class="ctx" id="ctx" hidden></div>
+<div class="modal" id="modal" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="m-title">
+  <header><h2 id="m-title">Editar carga</h2><button class="x" id="m-close" aria-label="Fechar">×</button></header>
+  <div id="m-body"></div>
+</div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+(function(){
+"use strict";
+const DECK_W=82, DECK_H=30, AREA=870, AREA_PB=200;
+/* medidas digitadas (comprimento × largura) prevalecem sobre o tamanho desenhado; mantém a orientação (deitada/em pé) */
+const hasDims=c=>typeof c.comp==="number"&&typeof c.larg==="number"&&c.comp>0&&c.larg>0;
+function fitDims(c,d){if(!d||!hasDims(c))return d;const lo=Math.max(c.comp,c.larg)/0.6,sh=Math.min(c.comp,c.larg)/0.6;const [w,h]=d.w>=d.h?[lo,sh]:[sh,lo];
+  const r=v=>Math.round(v*100)/100;const n={...d,w:r(w),h:r(h)};n.x=r(Math.max(0,Math.min(DECK_W-n.w,n.x)));n.y=r(Math.max(0,Math.min(DECK_H-n.h,n.y)));return n}
+/* geometria exata da aba Deck Cargoplan (bordas das células, 1 quadrado = 0,6 m): linha central (fina) de cada baia e divisões (grossas) */
+const BAYS=[[13,2],[12,9],[11,16],[10,23],[9,31],[8,39],[7,47],[6,55],[5,62],[4,70],[3,78]];
+const BAY_DIV=[5,12,19,27,35,43,51,58,66,74];
+const LEG=[["FRATELLI","#FFC000","Fratelli"],["PETRO","#92D050","Petrobras / ACC / TLT"],["TLT","#92D050",null],["MOTA","#6FA8DC","Mota-Engil"],["MANSERV","#DDD9C3","Manserv"],["GC","#FFFF00","GC Operações"],["UTC","#FDEADA","UTC"],["P-62","#BFBFBF","P-62"],["P-52","#E46C0A","P-52"]];
+const FIELDS=[
+ ["tag","TAG","text",true],["destino","Destino","text"],["peso","Peso (kg)","number"],["comp","Comprimento (m)","number"],["larg","Largura (m)","number"],
+ ["ufEmb","UF Embarque","text"],["ufDes","UF Desembarque","text"],["size","Size (m²) — se não houver medidas","number"],["dataReceb","Data de recebimento","date"],
+ ["local","Local atual","text"],["retorno","Previsão de retorno","text"],["responsavel","Responsável","text"],["obs","Observações","text"],["eslinga","Eslinga","text"],["vencimento","Vencimento (eslinga / certificado)","date"]
+];
+const $=s=>document.querySelector(s);
+const state={cargas:new Map(),fixos:[],meta:{},filter:"bordo",q:"",qh:"",tab:"controle",adjust:false,sel:null,canWrite:true,role:null,dest:new Set(),selRows:new Set()};
+let db=null,usr=null,myId=null;
+
+/* ---------- utilidades ---------- */
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const norm=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function key(s){const n=norm(s);const m=n.match(/^([A-Z]+)0*(\d+)/);return m?m[1]+m[2]:n}
+const fmtD=iso=>iso?iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(0,4):"";
+const TZ="America/Sao_Paulo";const fmtDT=v=>new Date(v).toLocaleString("pt-BR",{timeZone:TZ,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})+" (BRT)";const hojeSP=(ms)=>new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(ms==null?new Date():new Date(ms));
+const nf=(v,d=2)=>v==null||v===""?"":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:d});
+function colorFor(resp){const u=String(resp||"").toUpperCase();for(const [k,c] of LEG)if(u.includes(k))return c;return null}
+const isFrat=c=>String(c.responsavel||"").toUpperCase().includes("FRATELLI");
+const isGC=c=>/(^|[^A-Z])GC([^A-Z]|$)/.test(String(c.responsavel||"").toUpperCase());
+const semArea=c=>isFrat(c)||isGC(c); /* Fratelli e GC: contam na quantidade, nunca no m² */
+function sizeOf(c){if(semArea(c))return 0;if(typeof c.size==="number")return c.size;if(c.comp&&c.larg)return Math.ceil(+(c.comp*c.larg).toFixed(6));return null}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
+function current(){const best=new Map();for(const [id,c] of state.cargas){const k=key(c.tag);const b=best.get(k);if(!b||(c.ultimaMov||"")>(b.c.ultimaMov||"")||((c.ultimaMov||"")===(b.c.ultimaMov||"")&&(c.dataReceb||"")>(b.c.dataReceb||"")))best.set(k,{id,c})}return best}
+const onboard=()=>[...state.cargas.entries()].filter(([,c])=>c.qtd===1);
+function lastDate(){let m="";for(const c of state.cargas.values())if((c.ultimaMov||"")>m)m=c.ultimaMov;return m}
+
+/* ---------- gravação ---------- */
+/* vencimento: vencido = vermelho; vence em até 30 dias = alerta */
+function vencTd(v){if(!v)return'<td class="mono"></td>';const h=hojeSP(),d=String(v).slice(0,10);
+  const lim=new Date(Date.parse(h+"T12:00:00Z")+30*864e5).toISOString().slice(0,10);
+  const cl=d<h?"venc-x":(d<=lim?"venc-s":"");return `<td class="mono ${cl}" title="${d<h?"Vencido":(cl?"Vence em até 30 dias":"")}">${fmtD(d)}</td>`}
+/* B-PORT / B-PORT OFF passam a ser registrados como PACU */
+const RX_BPORT=/\bB[\s-]?PORT(?:\s+OFF)?/gi;
+function pacuFix(p){
+  const o=Object.assign({},p);
+  for(const k of ["local","destino","retorno","historico","obs","origemUnidade"])if(typeof o[k]==="string")o[k]=o[k].replace(RX_BPORT,"PACU").replace(/ROTA[CÇ][AÃ]O\s*FINALIZAD[OA]/gi,"ROTAÇÃO FINALIZADA");
+  if(o.prox&&typeof o.prox==="object"){o.prox=Object.assign({},o.prox);for(const k of ["unidade","origem"])if(typeof o.prox[k]==="string")o.prox[k]=o.prox[k].replace(RX_BPORT,"PACU")}
+  return o;
+}
+/* saída para base em terra (PACU/BMAC) = "Desembarque PACU|BMAC"; demais unidades = "CONVÉS U (enviada do Polaris)" */
+function linhaSaida(dm,u){u=String(u||"").replace(RX_BPORT,"PACU").trim().toUpperCase();return /^(PACU|BMAC)$/.test(u)?`${dm} - Desembarque ${u}`:`${dm} - CONVÉS ${u} (enviada do Polaris)`}
+async function save(id,patch,msg){
+  if(!db){toast("Sem conexão com o banco desta página.");return false}
+  if(!state.canWrite){toast("Seu acesso é somente visualização.");return false}
+  patch=pacuFix(patch);
+  const old=state.cargas.get(id)||{};const top=h=>String(h||"").split("\n")[0].trim();
+  const extra=("historico" in patch)&&!("movEm" in patch)&&top(patch.historico)&&top(patch.historico)!==top(old.historico)?{movEm:new Date().toISOString()}:{};
+  const c=Object.assign({},old,patch,extra,{sync:"pendente",editadoEm:new Date().toISOString(),editadoPor:myId||null});
+  if(c.deck&&hasDims(c))c.deck=fitDims(c,c.deck);
+  try{await db.doc("cargas/"+id).set(c);if(msg)toast(msg);return true}
+  catch(e){if(e&&e.code==="invalid_argument"){state.canWrite=false;applyRO()}toast(e&&e.code==="quota_exceeded"?"O banco desta página está cheio.":"Não foi possível salvar. Tente de novo.");return false}
+}
+function newId(tag,receb){let b=("c-"+key(tag)+"-"+(receb||"sem-data").replace(/-/g,"")).slice(0,180),i=b,n=2;while(state.cargas.has(i))i=b+"-"+n++;return i}
+
+/* ---------- KPIs ---------- */
+function renderKpis(){
+  const on=onboard();const m2=on.reduce((s,[,c])=>s+(sizeOf(c)||0),0);
+  $("#k-qtd").textContent=on.length;
+  const nav=on.filter(([,c])=>isGC(c)||isFrat(c)).length;
+  $("#k-nav").textContent=nav;$("#k-pb").textContent=on.length-nav;
+
+  const pbm2=on.filter(([,c])=>!(isGC(c)||isFrat(c))).reduce((a,[,c])=>a+(sizeOf(c)||0),0),pbp=pbm2/AREA_PB*100;
+  $("#k-pbm2").textContent=nf(pbm2,0)+" m²";$("#k-pbp").textContent=nf(pbp,1)+"% de "+AREA_PB+" m²";
+  const pb=$("#k-pbbar");pb.style.width=Math.min(100,pbp).toFixed(1)+"%";pb.classList.toggle("over",pbp>100);
+  $("#k-last").textContent=fmtD(lastDate())||"–";
+  $("#k-pend").textContent=[...state.cargas.values()].filter(c=>c.sync==="pendente").length;
+  const sy=state.meta.sincronizadoEm;const un=$("#updnote");
+  if(sy){const dd=new Date(sy);const f=o=>new Intl.DateTimeFormat("pt-BR",Object.assign({timeZone:"America/Sao_Paulo"},o)).format(dd);
+    const txt=`Nota: Atualizado em ${f({day:"2-digit"})}.${f({month:"2-digit"})}.${f({year:"numeric"})} às ${f({hour:"2-digit",minute:"2-digit",hour12:false})} (BRT)`;
+    if(un.dataset.pt!==txt){un.dataset.pt=txt;un.textContent=txt}un.title=state.meta.arquivo||"";un.hidden=false}else un.hidden=true;
+  const semMed=on.filter(([,c])=>sizeOf(c)==null).length;
+  $("#baseinfo").textContent=(state.meta.arquivo?"Base: "+state.meta.arquivo:"")+(semMed?` · ${semMed} carga(s) a bordo sem medida`:"")+(state.meta.sincronizadoEm?" · Excel sincronizado em "+fmtDT(state.meta.sincronizadoEm):"");
+}
+
+/* ---------- tabela ---------- */
+function renderRows(){
+  const tb=$("#rows");const L=lastDate();const dias={recentes:7,r14:14,r30:30}[state.filter];const lim=dias?hojeSP(Date.now()-dias*864e5):"";
+  let list=[...state.cargas.entries()];
+  if(state.filter==="bordo")list=list.filter(([,c])=>c.qtd===1);
+  if(state.grp==="pb")list=list.filter(([,c])=>!(isGC(c)||isFrat(c)));else if(state.grp==="nav")list=list.filter(([,c])=>isGC(c)||isFrat(c));
+  else if(state.filter==="prox")list=list.filter(([,c])=>c.prox&&c.prox.data);
+  else if(dias)list=list.filter(([,c])=>(c.ultimaMov||"")>=lim);
+  if(state.rot==="ocultar")list=list.filter(([,c])=>!rotFim(c));
+  else if(state.rot==="so")list=list.filter(([,c])=>rotFim(c));
+  fillLocal(list);
+  if(state.local)list=list.filter(([,c])=>locKey(c.local)===state.local);
+  fillDest(list);
+  if(state.dest.size)list=list.filter(([,c])=>state.dest.has(destKey(c.destino)));
+  const q=norm(state.q);if(q)list=list.filter(([,c])=>norm([c.tag,c.eslinga,c.destino,c.responsavel,c.local,c.obs,c.ufEmb].join(" ")).includes(q));
+  list.sort((a,b)=>(b[1].ultimaMov||"").localeCompare(a[1].ultimaMov||"")||(a[1].ordem??9e9)-(b[1].ordem??9e9));
+  state.lastList=list;
+  if(!list.length){tb.innerHTML=`<tr><td colspan="21" class="empty">${state.cargas.size?"Nenhuma carga neste filtro.":"As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira."}</td></tr>`;return}
+  tb.innerHTML=list.map(([id,c])=>{
+    const s=sizeOf(c),m2=c.qtd===1?(s||0):0;
+    const px=c.prox&&c.prox.data?c.prox:null;
+    const cls=[isFrat(c)?"frat":isGC(c)?"gc":(c.ultimaMov&&c.ultimaMov===L?"last":(c.destaque==="amarelo"?"amar":"")),c.qtd===1?"":"fora",rotFim(c)?"rotf":"",c.sync==="pendente"?"pend":"",px?"proxr":""].join(" ");
+    return `<tr class="${cls}" data-id="${esc(id)}">
+      <td class="selc"><input type="checkbox" class="rsel" data-id="${esc(id)}" ${state.selRows.has(id)?"checked":""} aria-label="Selecionar ${esc(c.tag)}"></td>
+      <td class="tag">${esc(c.tag)}${px?`<span class="pxb">${c.qtd===1?"&rarr; ":"&larr; "}${esc(px.unidade||"")} · ${fmtD(px.data).slice(0,5)}</span>`:""}</td><td>${esc(c.eslinga)}</td>${vencTd(c.vencimento)}<td>${esc(c.destino)}</td><td class="num">${typeof c.peso==="number"?nf(c.peso):esc(c.peso)}</td>
+      <td class="num">${nf(c.comp)}</td><td class="num">${nf(c.larg)}</td><td class="mono">${esc(c.ufEmb)}</td><td class="mono">${esc(c.ufDes)}</td>
+      <td class="num">${c.qtd===1?'<span class="qtd1">1</span>':""}</td><td class="num">${s==null?"":nf(s)}</td><td class="num">${nf(m2)}</td>
+      <td class="mono">${fmtD(c.dataReceb)}</td><td>${esc(c.local)}</td><td>${esc(c.retorno)}</td><td>${esc(c.responsavel)}</td>
+      <td class="hist">${esc(c.historico)}</td><td class="mono">${fmtD(c.ultimaMov)}</td><td>${esc(c.obs)}</td>
+      <td class="acts"><button class="rowbtn" data-edit="${esc(id)}">${state.canWrite?"Editar":"Ver"}</button>${px?`<button class="rowbtn ok" data-pxok="${esc(id)}">Confirmar</button><button class="rowbtn no" data-pxno="${esc(id)}">Cancelar</button>`:""}</td></tr>`}).join("");
+  updSel();
+}
+
+const locKey=v=>String(v||"").replace(/\s+/g," ").trim().toUpperCase()||"(SEM LOCAL)";
+function fillLocal(list){
+  const cnt=new Map();for(const [,c] of list){const k=locKey(c.local);cnt.set(k,(cnt.get(k)||0)+1)}
+  if(state.local&&!cnt.has(state.local))cnt.set(state.local,0);
+  const sel=$("#f-local");const opts=[...cnt].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+  sel.innerHTML=`<option value="">Todos (${list.length})</option>`+opts.map(([k,n])=>`<option value="${esc(k)}" ${k===state.local?"selected":""}>${esc(k)} (${n})</option>`).join("");
+}
+$("#f-local").addEventListener("change",e=>{state.local=e.target.value;renderRows()});
+
+/* ---------- filtro de destino (múltipla escolha) ---------- */
+const destKey=v=>String(v||"").replace(/\s+/g," ").trim().toUpperCase()||"(SEM DESTINO)";
+try{(JSON.parse(localStorage.getItem("dcp-dest")||"[]")||[]).forEach(d=>state.dest.add(d))}catch(e){}
+function fillDest(list){
+  const cnt=new Map();for(const [,c] of list){const k=destKey(c.destino);cnt.set(k,(cnt.get(k)||0)+1)}
+  for(const d of state.dest)if(!cnt.has(d))cnt.set(d,0);
+  const opts=[...cnt].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+  const n=state.dest.size;$("#f-dest-l").textContent=n===0?"Todos":n===1?[...state.dest][0]:n+" selecionados";
+  $("#f-dest-l").classList.toggle("dv",n===1);
+  $("#f-dest-p").innerHTML=`<div class="mstop"><button type="button" class="btn" data-ms="all">Marcar todos</button><button type="button" class="btn" data-ms="none">Limpar</button></div>`+
+    opts.map(([k,v])=>`<label><input type="checkbox" value="${esc(k)}" ${state.dest.has(k)?"checked":""}><span class="dv">${esc(k)}</span><em>${v}</em></label>`).join("");
+}
+const saveDest=()=>{try{localStorage.setItem("dcp-dest",JSON.stringify([...state.dest]))}catch(e){}};
+$("#f-dest-b").addEventListener("click",e=>{e.stopPropagation();const p=$("#f-dest-p");p.hidden=!p.hidden;$("#f-dest-b").setAttribute("aria-expanded",String(!p.hidden))});
+$("#f-dest-p").addEventListener("click",e=>e.stopPropagation());
+$("#f-dest-p").addEventListener("change",e=>{const i=e.target;if(i.type!=="checkbox")return;i.checked?state.dest.add(i.value):state.dest.delete(i.value);saveDest();renderRows()});
+$("#f-dest-p").addEventListener("click",e=>{const a=e.target.closest("[data-ms]");if(!a)return;
+  if(a.dataset.ms==="none")state.dest.clear();else $("#f-dest-p").querySelectorAll("input[type=checkbox]").forEach(i=>state.dest.add(i.value));saveDest();renderRows()});
+document.addEventListener("click",()=>{const p=$("#f-dest-p");if(p&&!p.hidden){p.hidden=true;$("#f-dest-b").setAttribute("aria-expanded","false")}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){const p=$("#f-dest-p");if(p&&!p.hidden){p.hidden=true;$("#f-dest-b").focus()}}});
+/* rotação finalizada: "ROTAÇÃO FINALIZADO/A" em Previsão de retorno ou Local atual */
+const rotFim=c=>/ROTA[CÇ][AÃ]O\s*FINALIZAD/.test(String(c.retorno||"").toUpperCase()+" "+String(c.local||"").toUpperCase());
+try{state.rot=localStorage.getItem("dcp-rot")||"mostrar"}catch(e){state.rot="mostrar"}
+$("#f-rot").value=state.rot;
+$("#f-rot").addEventListener("change",e=>{state.rot=e.target.value;try{localStorage.setItem("dcp-rot",state.rot)}catch(err){}renderRows()});
+
+
+
+/* ---------- escolher colunas visíveis ---------- */
+(function(){
+  const ths=[...document.querySelectorAll("#ctl thead th")];const cols=ths.map((th,i)=>({i:i+1,n:th.textContent.trim()})).filter(c=>c.n);
+  const st=document.createElement("style");st.id="colvis";document.head.appendChild(st);
+  let H=new Set();try{(JSON.parse(localStorage.getItem("dcp-cols-hidden")||"[]")||[]).forEach(n=>H.add(n))}catch(e){}
+  const apply=()=>{st.textContent=cols.filter(c=>H.has(c.n)).map(c=>`#ctl th:nth-child(${c.i}),#ctl td:nth-child(${c.i}){display:none}`).join("\n");
+    const vis=cols.length-cols.filter(c=>H.has(c.n)).length;$("#f-cols-l").textContent=vis===cols.length?"Todas":`${vis} de ${cols.length}`;
+    try{localStorage.setItem("dcp-cols-hidden",JSON.stringify([...H]))}catch(e){}};
+  const fill=()=>{$("#f-cols-p").innerHTML=`<div class="mstop"><button type="button" class="btn" data-mc="all">Mostrar todas</button><button type="button" class="btn" data-mc="tag">Só TAG</button></div>`+
+    cols.map(c=>`<label><input type="checkbox" value="${esc(c.n)}" ${H.has(c.n)?"":"checked"}><span>${esc(c.n)}</span></label>`).join("")};
+  $("#f-cols-b").addEventListener("click",e=>{e.stopPropagation();const p=$("#f-cols-p");if(p.hidden)fill();p.hidden=!p.hidden;$("#f-cols-b").setAttribute("aria-expanded",String(!p.hidden))});
+  $("#f-cols-p").addEventListener("click",e=>{e.stopPropagation();const a=e.target.closest("[data-mc]");if(!a)return;
+    if(a.dataset.mc==="all")H.clear();else{H=new Set(cols.map(c=>c.n).filter(n=>n!=="TAG"))}apply();fill()});
+  $("#f-cols-p").addEventListener("change",e=>{const i=e.target;if(i.type!=="checkbox")return;
+    if(i.checked)H.delete(i.value);else{if(cols.length-H.size<=1){i.checked=true;toast("Deixe pelo menos uma coluna visível.");return}H.add(i.value)}apply()});
+  document.addEventListener("click",()=>{const p=$("#f-cols-p");if(!p.hidden){p.hidden=true;$("#f-cols-b").setAttribute("aria-expanded","false")}});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"){const p=$("#f-cols-p");if(!p.hidden){p.hidden=true;$("#f-cols-b").focus()}}});
+  apply();
+})();
+/* ---------- largura das colunas (arrastar a borda do cabeçalho; duplo clique restaura) ---------- */
+(function(){
+  const tbl=document.getElementById("ctl");if(!tbl)return;
+  const st=document.createElement("style");st.id="colw";document.head.appendChild(st);
+  let W={};try{W=JSON.parse(localStorage.getItem("dcp-colw3")||"{}")||{}}catch(e){W={}}
+  const apply=()=>{const ks=Object.keys(W);tbl.classList.toggle("fixw",ks.length>0);
+    st.textContent=ks.map(i=>`#ctl th:nth-child(${i}),#ctl td:nth-child(${i}){width:${W[i]}px;min-width:${W[i]}px;max-width:${W[i]}px}`).join("\n")};
+  let prev=null;try{prev=JSON.parse(localStorage.getItem("dcp-colw2-prev")||"null")}catch(e){}
+  const btn=document.getElementById("b-cols");
+  const upd=()=>{const has=Object.keys(W).length>0;
+    btn.textContent=has?"Expandir colunas":(prev?"Restaurar larguras":"Expandir colunas");
+    btn.disabled=!has&&!prev;btn.title=has?"Mostrar todas as colunas na largura automática, com o texto inteiro":(prev?"Voltar às larguras que você ajustou":"As colunas já estão na largura automática")};
+  const save=()=>{try{localStorage.setItem("dcp-colw3",JSON.stringify(W));localStorage.setItem("dcp-colw2-prev",JSON.stringify(prev))}catch(e){}upd()};
+  btn.addEventListener("click",()=>{if(Object.keys(W).length){prev=W;W={}}else if(prev){W=prev;prev=null}apply();save()});
+  apply();upd();
+  tbl.querySelectorAll("thead th").forEach((th,ix)=>{
+    const i=ix+1;if(!th.textContent.trim())return;
+    const h=document.createElement("span");h.className="rz";h.title="Arraste para ajustar a largura · duplo clique restaura";th.appendChild(h);
+    h.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();h.setPointerCapture(e.pointerId);
+      const x0=e.clientX,w0=th.getBoundingClientRect().width;h.classList.add("on");document.body.classList.add("rzing");
+      const mv=ev=>{W[i]=Math.max(28,Math.round(w0+ev.clientX-x0));apply()};
+      const up=()=>{h.removeEventListener("pointermove",mv);h.removeEventListener("pointerup",up);h.removeEventListener("pointercancel",up);h.classList.remove("on");document.body.classList.remove("rzing");save()};
+      h.addEventListener("pointermove",mv);h.addEventListener("pointerup",up);h.addEventListener("pointercancel",up)});
+    h.addEventListener("dblclick",e=>{e.stopPropagation();delete W[i];apply();save()});
+    h.addEventListener("click",e=>e.stopPropagation());
+  });
+})();
+
+/* ---------- relatório em PDF (paisagem A4): resumo, tabela e imagem do convés ---------- */
+const PDFLIB_URL="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
+function loadScript(u){return new Promise((res,rej)=>{if(window.PDFLib)return res();const s=document.createElement("script");s.src=u;s.onload=res;s.onerror=()=>rej(new Error("script"));document.head.appendChild(s)})}
+async function deckPng(){
+  const root=document.documentElement,prevTheme=root.getAttribute("data-theme"),prevSel=state.sel,prevAdj=state.adjust;
+  root.setAttribute("data-theme","light");state.sel=null;state.adjust=false;drawDeck();
+  try{
+    const clone=svg.cloneNode(true);const src=svg.querySelectorAll("*"),dst=clone.querySelectorAll("*");
+    const P=["fill","stroke","stroke-width","stroke-dasharray","opacity","font-family","font-size","font-weight","letter-spacing"];
+    src.forEach((e,i)=>{const cs=getComputedStyle(e);dst[i].setAttribute("style",P.map(k=>k+":"+cs.getPropertyValue(k)).join(";"))});
+    clone.querySelectorAll("title").forEach(t=>t.remove());
+    const vb=svg.viewBox.baseVal,W=3000,H=Math.round(W*vb.height/vb.width);
+    clone.setAttribute("xmlns",NS);clone.setAttribute("width",W);clone.setAttribute("height",H);
+    const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)],{type:"image/svg+xml"}));
+    const img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url});
+    const cv=document.createElement("canvas");cv.width=W;cv.height=H;const cx=cv.getContext("2d");cx.fillStyle="#ffffff";cx.fillRect(0,0,W,H);cx.drawImage(img,0,0,W,H);URL.revokeObjectURL(url);
+    const blob=await new Promise(r=>cv.toBlob(r,"image/png"));return{bytes:await blob.arrayBuffer(),w:W,h:H};
+  }finally{if(prevTheme==null)root.removeAttribute("data-theme");else root.setAttribute("data-theme",prevTheme);state.sel=prevSel;state.adjust=prevAdj;drawDeck()}
+}
+const CP1252=new Set([..."€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ"].map(c=>c.charCodeAt(0)));
+const pdfTxt=v=>String(v??"").replace(/\r/g,"").replace(/²/g,"2").replace(/³/g,"3").split("").map(ch=>{const c=ch.charCodeAt(0);return ch==="\n"||(c>=32&&c<127)||(c>=160&&c<=255)||CP1252.has(c)?ch:"?"}).join("");
+function wrapPdf(text,font,size,maxW){
+  const out=[];for(const para of pdfTxt(text).split("\n")){let line="";
+    for(let w of para.split(/ +/)){
+      while(font.widthOfTextAtSize(w,size)>maxW&&w.length>1){let k=w.length;while(k>1&&font.widthOfTextAtSize(w.slice(0,k),size)>maxW)k--;if(line){out.push(line);line=""}out.push(w.slice(0,k));w=w.slice(k)}
+      const t=line?line+" "+w:w;if(font.widthOfTextAtSize(t,size)<=maxW)line=t;else{out.push(line);line=w}}
+    out.push(line)}
+  return out.length?out:[""];
+}
+async function gerarRelatorio(modo){
+  await loadScript(PDFLIB_URL);const {PDFDocument,StandardFonts,rgb}=window.PDFLib;
+  const hex=h=>{h=String(h||"#ffffff").replace("#","");return rgb(parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255)};
+  const doc=await PDFDocument.create();doc.setTitle("Sayan Polaris Deck Cargo Plan - Relatório");
+  const F=await doc.embedFont(StandardFonts.Helvetica),FB=await doc.embedFont(StandardFonts.HelveticaBold);
+  const PW=841.89,PH=595.28,M=24,INK=hex("#14212e"),MUT=hex("#5b6b7a"),NAVY=hex("#14304a"),LINE=hex("#c9d2db");
+  const on=onboard(),nav=on.filter(([,c])=>isGC(c)||isFrat(c)).length,m2=on.reduce((a,[,c])=>a+(sizeOf(c)||0),0);
+  const emit=fmtDT(Date.now()),L=lastDate();
+  let rows=modo==="tabela"&&state.lastList?state.lastList:[...on].sort((a,b)=>(b[1].ultimaMov||"").localeCompare(a[1].ultimaMov||"")||(a[1].ordem??9e9)-(b[1].ordem??9e9));
+  const FN={prox:"Próximas movimentações",bordo:"A bordo",recentes:"Movimentadas (7 dias)",r14:"Movimentadas (14 dias)",r30:"Movimentadas (30 dias)",todas:"Todas"};
+  const desc=modo==="tabela"?`Como exibido na tabela: ${FN[state.filter]||""}${state.local?" · Local: "+state.local:""}${state.dest.size?" · Destino: "+[...state.dest].join(", "):""}${state.q?" · Busca: "+state.q:""}`:"Cargas a bordo do Sayan Polaris";
+  let page,y;const pages=[];
+  const T=(t,x,yy,o={})=>page.drawText(pdfTxt(t),{x,y:yy,size:o.size||8,font:o.bold?FB:F,color:o.color||INK});
+  const newPage=()=>{page=doc.addPage([PW,PH]);pages.push(page);y=PH-M;
+    T("Sayan Polaris Deck Cargo Plan",M,y-12,{size:13,bold:true,color:NAVY});
+    const r="Emitido em "+emit;T(r,PW-M-F.widthOfTextAtSize(pdfTxt(r),8),y-10,{color:MUT});
+    y-=20;page.drawLine({start:{x:M,y},end:{x:PW-M,y},thickness:.6,color:LINE});y-=8};
+  newPage();
+  T("Relatório de cargas e convés",M,y-8,{size:10,color:MUT});
+  if(state.meta.arquivo){const b="Base Excel: "+state.meta.arquivo;T(b,PW-M-F.widthOfTextAtSize(pdfTxt(b),8),y-8,{color:MUT})}
+  y-=20;
+  const pbm2=on.filter(([,c])=>!(isGC(c)||isFrat(c))).reduce((a,[,c])=>a+(sizeOf(c)||0),0);
+  const K=[["PETROBRAS",String(on.length-nav)],["NAVIO (GC + FRATELLI)",String(nav)],["TOTAL A BORDO",String(on.length)],["OCUPAÇÃO PETROBRAS",`${nf(pbm2,0)} m²  (${nf(pbm2/AREA_PB*100,1)}% de ${AREA_PB} m²)`],["ÚLTIMA MOVIMENTAÇÃO",fmtD(L)||"-"]];
+  const KW=[100,130,100,220,PW-2*M-100-130-100-220-4*8];let kx=M;
+  K.forEach(([l,v],i)=>{const w=KW[i];page.drawRectangle({x:kx,y:y-40,width:w,height:40,borderColor:LINE,borderWidth:.8,color:hex("#f7f9fb")});
+    T(l,kx+8,y-13,{size:7,color:MUT});T(v,kx+8,y-32,{size:i<3?18:i<4?13:14,bold:true});kx+=w+8});
+  y-=56;
+  T(`Controle de cargas  ·  ${desc}  ·  ${rows.length} carga(s)`,M,y,{size:9,bold:true});y-=8;
+  const COLS=[["TAG",62],["Eslinga",44],["Vencimento",40],["Destino",46],["Peso (kg)",44],["Comp. (m)",26],["Larg. (m)",26],["UF Embarque",44],["UF Desemb.",44],["QTD",20],["Size (m²)",24],["M²",22],["Receb.",40],["Local atual",50],["Retorno",40],["Responsável",50],["Movimentações",132],["Última mov.",40],["Observações",84]];
+  /* modo "como está na tela": só as colunas visíveis na tabela, alargadas para ocupar a página */
+  const ALLC=COLS.slice();let keep=ALLC.map((_,i)=>i);
+  if(modo==="tabela"){const ths=[...document.querySelectorAll("#ctl thead th")].slice(1,1+ALLC.length);const k=ths.map((t,i)=>getComputedStyle(t).display!=="none"?i:-1).filter(i=>i>=0);if(k.length)keep=k}
+  {const tw=keep.reduce((a,i)=>a+ALLC[i][1],0),sc=Math.min((PW-2*M)/tw,3);COLS.length=0;keep.forEach(i=>COLS.push([ALLC[i][0],ALLC[i][1]*sc]))}
+  const FS=6.4,LH=7.6,PAD=1.8;
+  const head=()=>{let x=M;const h=18;page.drawRectangle({x:M,y:y-h,width:PW-2*M,height:h,color:NAVY});
+    COLS.forEach(([t,w])=>{wrapPdf(t,FB,6.4,w-2*PAD).slice(0,2).forEach((ln,i)=>T(ln,x+PAD,y-7-i*7,{size:6.4,bold:true,color:rgb(1,1,1)}));x+=w});y-=h};
+  head();
+  for(const [,c] of rows){
+    const s=sizeOf(c),mm=c.qtd===1?(s||0):0;
+    const vals=[c.tag,c.eslinga,fmtD(c.vencimento),c.destino,typeof c.peso==="number"?nf(c.peso):c.peso,nf(c.comp),nf(c.larg),c.ufEmb,c.ufDes,c.qtd===1?"1":"",s==null?"":nf(s),nf(mm),fmtD(c.dataReceb),c.local,c.retorno,c.responsavel,c.historico,fmtD(c.ultimaMov),c.obs];
+    const vk=keep.map(i=>vals[i]);const cells=vk.map((v,i)=>wrapPdf(v==null?"":String(v),keep[i]===0?FB:F,FS,COLS[i][1]-2*PAD));
+    const h=Math.max(...cells.map(l=>l.length))*LH+2*PAD;
+    if(y-h<M+14){newPage();head()}
+    const fill=isFrat(c)?"#FFC000":isGC(c)?"#FFFF00":(c.ultimaMov&&c.ultimaMov===L?"#DDD9C4":(c.destaque==="amarelo"?"#FFF27A":null));
+    if(fill)page.drawRectangle({x:M,y:y-h,width:PW-2*M,height:h,color:hex(fill)});
+    let x=M;cells.forEach((ls,i)=>{ls.forEach((ln,j)=>T(ln,x+PAD,y-PAD-6-j*LH,{size:FS,bold:keep[i]===0,color:rotFim(c)?hex("#c2410c"):c.qtd===1?INK:hex("#7a1f1f")}));
+      page.drawLine({start:{x:x+COLS[i][1],y},end:{x:x+COLS[i][1],y:y-h},thickness:.3,color:LINE});x+=COLS[i][1]});
+    page.drawLine({start:{x:M,y:y-h},end:{x:PW-M,y:y-h},thickness:.3,color:LINE});page.drawLine({start:{x:M,y},end:{x:M,y:y-h},thickness:.3,color:LINE});
+    y-=h;
+  }
+  if(!rows.length){T("Nenhuma carga.",M+4,y-12,{color:MUT});y-=18}
+  /* imagem do convés */
+  const im=await deckPng();const png=await doc.embedPng(im.bytes);
+  const maxW=PW-2*M;let w=maxW,h=w*im.h/im.w;const need=h+50;
+  if(y-M-14<Math.min(need,230)){newPage()}else y-=14;
+  const avail=y-M-14-36;if(h>avail){h=avail;w=h*im.w/im.h}
+  T("Visualização do deck  ·  cargas a bordo do Sayan Polaris  ·  1 quadrado = 0,6 m",M,y-8,{size:9,bold:true});y-=16;
+  page.drawImage(png,{x:M+(maxW-w)/2,y:y-h,width:w,height:h});page.drawRectangle({x:M+(maxW-w)/2,y:y-h,width:w,height:h,borderColor:LINE,borderWidth:.6});y-=h+12;
+  const seen=new Set();let lx=M;
+  [...LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>[c,n]),["#FFFFFF","Responsável a confirmar"],["RING","Próxima movimentação"]].forEach(([c,n])=>{
+    if(c==="RING")page.drawRectangle({x:lx,y:y-1,width:8,height:8,borderColor:hex("#e00000"),borderWidth:1.4});
+    else page.drawRectangle({x:lx,y:y-1,width:8,height:8,color:hex(c),borderColor:hex("#888888"),borderWidth:.4});T(n,lx+11,y,{size:7.5});lx+=18+F.widthOfTextAtSize(pdfTxt(n),7.5)});
+  pages.forEach((p,i)=>{const t=`Sayan Polaris Deck Cargo Plan  ·  emitido em ${emit}  ·  página ${i+1} de ${pages.length}`;p.drawText(pdfTxt(t),{x:PW-M-F.widthOfTextAtSize(pdfTxt(t),7),y:12,size:7,font:F,color:MUT})});
+  const bytes=await doc.save();
+  const d=new Date();const pp=new Intl.DateTimeFormat("pt-BR",{timeZone:TZ,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).formatToParts(d).reduce((o,x)=>(o[x.type]=x.value,o),{});
+  return{blob:new Blob([bytes],{type:"application/pdf"}),filename:`Relatorio Deck Cargo Plan - ${pp.day}.${pp.month}.${pp.year} ${pp.hour}h${pp.minute}.pdf`};
+}
+async function entregarPdf(r){
+  const dl=window.claude&&window.claude.use?await window.claude.use("downloads").catch(()=>null):null;
+  if(dl){try{await dl.save({filename:r.filename,data:r.blob});toast("Relatório salvo. Abra o PDF para imprimir.");return}catch(e){if(e&&e.code==="declined")return;if(e&&e.code==="rate_limited"){toast("Já existe uma confirmação aberta.");return}}}
+  const u=URL.createObjectURL(r.blob);const a=document.createElement("a");a.href=u;a.download=r.filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);toast("Relatório gerado.");
+}
+$("#b-report").addEventListener("click",()=>{
+  openModal("Imprimir relatório",`<div class="pad"><p>Gera um PDF em paisagem (A4) com o resumo (Petrobras, Navio, Total, ocupação Petrobras e última movimentação), a tabela de controle com todas as colunas e a imagem do convés. Depois é só abrir o PDF para salvar ou imprimir.</p>
+   <div class="ropts"><label><input type="radio" name="rmodo" value="bordo" checked><span>Tabela com as cargas a bordo</span></label>
+   <label><input type="radio" name="rmodo" value="tabela"><span>Tabela como está na tela agora (filtros, busca e colunas escolhidas)</span></label></div>
+   <div style="display:flex;gap:8px;margin-top:14px"><button class="btn primary" id="r-ok">Gerar PDF</button><button class="btn" id="r-no">Cancelar</button></div></div>`);
+  $("#r-no").onclick=closeModal;
+  $("#r-ok").onclick=async()=>{const b=$("#r-ok");b.disabled=true;b.textContent="Gerando…";
+    try{const modo=(document.querySelector('input[name="rmodo"]:checked')||{}).value||"bordo";const r=await gerarRelatorio(modo);closeModal();await entregarPdf(r)}
+    catch(e){console.error(e);b.disabled=false;b.textContent="Gerar PDF";toast("Não foi possível gerar o relatório. Tente de novo.")}};
+});
+/* ---------- histórico ---------- */
+function events(){
+  const ev=[];
+  for(const [id,c] of state.cargas){
+    /* ano: linhas vêm da mais recente para a mais antiga; sem ano explícito, herda o ano da linha de cima e volta um ano quando o mês "pula para frente" */
+    let cy=+(c.ultimaMov||c.dataReceb||hojeSP()).slice(0,4),prevD=null,idx=-1;
+    for(const line of String(c.historico||"").split(/\n/)){
+      const m=line.match(/^\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*-\s*(.+)$/);if(!m)continue;
+      const mmdd=`${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+      if(m[3])cy=+(m[3].length===2?"20"+m[3]:m[3]);else if(prevD&&`${cy}-${mmdd}`>prevD)cy--;
+      const d=`${cy}-${mmdd}`;prevD=d;idx++;
+      /* hora: só a movimentação mais recente de cada carga tem hora conhecida (registrada no site) */
+      let ts=null,show=false;if(idx===0){const src=c.movEm||c.editadoEm||null;if(src&&hojeSP(Date.parse(src))===d){ts=src;show=!!c.movEm}}
+      const t=m[4].trim();const up=t.toUpperCase();
+      const kind=up.includes("POLARIS")?"on":(/CONV[EÉ]S|B\/L|BACKLOAD|DESEMBARQUE/.test(up)?"off":"mv");
+      ev.push({d,t,kind,tag:c.tag,id,ts,idx,show});
+    }
+  }
+  /* mais recente primeiro: data; no mesmo dia, hora registrada (as com hora vêm antes); depois a ordem das linhas */
+  return ev.sort((a,b)=>b.d.localeCompare(a.d)||((b.ts||"").localeCompare(a.ts||""))||(a.idx-b.idx)||String(a.tag).localeCompare(String(b.tag)));
+}
+function renderHist(){
+  {const h=$("#h-hoje");if(h)h.textContent=fmtD(hojeSP())}
+  /* busca por TAG: aceita várias separadas por vírgula; ignora espaços, traços e zeros à esquerda (CISA 870030 = CISA 0870030) */
+  const qs=String(state.qh||"").split(/[,;]/).map(x=>x.trim()).filter(Boolean).map(x=>({n:norm(x),k:key(x)}));let ev=events();
+  if(qs.length)ev=ev.filter(e=>{const n=norm(e.tag),k=key(e.tag);return qs.some(q=>n.includes(q.n)||k.includes(q.k))});
+  {const hc=$("#qh-n");if(hc)hc.textContent=qs.length?`${new Set(ev.map(e=>e.id)).size} carga(s) · ${ev.length} movimentaç${ev.length===1?"ão":"ões"}`:""}
+  const box=$("#timeline");if(!ev.length){box.innerHTML='<div class="empty">Nenhuma movimentação encontrada.</div>';return}
+  const days=new Map();for(const e of ev.slice(0,1500)){if(!days.has(e.d))days.set(e.d,[]);days.get(e.d).push(e)}
+  box.innerHTML=[...days].map(([d,list])=>`<div class="day"><h3>${fmtD(d)} <small>${list.length} movimentaç${list.length>1?"ões":"ão"}</small></h3>
+   ${list.map(e=>`<div class="ev"><span class="pill ${e.kind}">${e.kind==="on"?"A BORDO":e.kind==="off"?"SAIU":"REGISTRO"}</span><div>${e.ts&&e.show?`<span class="hhmm dv">${new Intl.DateTimeFormat("pt-BR",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}).format(new Date(e.ts))}</span> `:""}<span class="t">${esc(e.tag)}</span> · ${esc(e.t)}</div></div>`).join("")}</div>`).join("");
+}
+
+/* ---------- formulários ---------- */
+function fieldsHtml(c,prefix){
+  return FIELDS.map(([k,l,t,req])=>`<label>${l}<input id="${prefix}-${k}" name="${k}" type="${t==="number"?"text":t}" ${t==="number"?'inputmode="decimal"':""} ${req?"required":""} value="${esc(t==="number"&&c[k]!=null?String(c[k]).replace(".",","):c[k]??"")}"></label>`).join("")+
+  `<label>A bordo do Sayan Polaris?<select id="${prefix}-qtd" name="qtd"><option value="1" ${c.qtd===1?"selected":""}>Sim (QTD = 1)</option><option value="" ${c.qtd!==1?"selected":""}>Não (QTD vazio)</option></select></label>
+   <label class="wide">Movimentações (uma por linha, a mais recente em cima — DD/MM - CONVÉS …)<textarea id="${prefix}-historico" name="historico">${esc(c.historico||"")}</textarea></label>`;
+}
+function readForm(form){
+  const o={};for(const [k,,t] of FIELDS){const v=form.elements[k].value.trim();o[k]=t==="number"?(v===""?null:Number(v.replace(/\./g,"").replace(",","."))):(v||null)}
+  if(o.peso!=null&&isNaN(o.peso))o.peso=form.elements.peso.value.trim();
+  o.qtd=form.elements.qtd.value==="1"?1:null;o.historico=form.elements.historico.value.replace(/\r/g,"").trim()||null;
+  const first=(o.historico||"").split("\n")[0].match(/^(\d{1,2})\/(\d{1,2})/);
+  if(first){const y=(o.dataReceb||hojeSP()).slice(0,4);o.ultimaMov=`${y}-${first[2].padStart(2,"0")}-${first[1].padStart(2,"0")}`}
+  else o.ultimaMov=o.dataReceb;
+  if(semArea(o))o.size=0;
+  return o;
+}
+function buildAdd(){
+  const f=$("#f-add");
+  f.innerHTML=fieldsHtml({qtd:1,dataReceb:hojeSP(),destino:"A CONFIRMAR",obs:"A CONFIRMAR"},"a")+
+   `<label>Origem da carga (unidade de onde veio)<input id="a-origem" name="origemUnidade" required list="units-or" placeholder="Ex.: P-62, PACU" autocomplete="off"></label>${UNITS_OR}`+
+   `<div class="actions"><button class="btn primary" type="submit">Adicionar carga</button><span class="hint">A carga entra na página na hora e vai para a planilha oficial na próxima atualização automática (07:30, 08:00 ou 08:30).</span></div>`;
+}
+$("#f-add").addEventListener("submit",async e=>{
+  e.preventDefault();if(!gate())return;
+  const o=readForm(e.target);if(!o.tag){toast("Informe a TAG.");return}
+  const org=($("#a-origem").value||"").trim().toUpperCase();if(!org){toast("Informe a origem da carga.");$("#a-origem").focus();return}
+  o.origemUnidade=org;
+  if(!o.historico&&o.qtd===1){const d=o.dataReceb||hojeSP();o.historico=`${d.slice(8,10)}/${d.slice(5,7)} - CONVÉS POLARIS (recebida da ${org})`;o.ultimaMov=d}
+  o.deck=null;o.origem="pagina";
+  const id=newId(o.tag,o.dataReceb);
+  if(await save(id,o,"Carga "+o.tag+" adicionada.")){buildAdd()}
+});
+function openModal(title,html){$("#m-title").textContent=title;$("#m-body").innerHTML=html;$("#modal").hidden=false;const f=$("#m-body input,#m-body select");f&&f.focus()}
+function closeModal(){$("#modal").hidden=true;$("#m-body").innerHTML=""}
+$("#m-close").onclick=closeModal;$("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();hideCtx()}});
+
+function editCargo(id){
+  const c=state.cargas.get(id);if(!c)return;
+  openModal((state.canWrite?"Editar carga ":"Carga ")+c.tag,`<form class="form" id="f-edit" style="padding-top:16px">${fieldsHtml(c,"e")}
+   <p class="editinfo" id="e-info">${c.editadoEm?"Última alteração na página: "+fmtDT(c.editadoEm):""}${c.sync==="pendente"?" · aguardando a planilha (gerada às 07:45, 10:30, 13:30, 16:30 e 19:30 com o nome de quem editou)":""}</p>
+   <fieldset class="wide" ${state.canWrite?"":"hidden"} style="border:1px solid var(--line);border-radius:6px;padding:10px;display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+    <legend class="hint">Registrar movimentação (entra no topo das movimentações)</legend>
+    <label>Data<input id="mv-d" type="date" value="${hojeSP()}"></label>
+    <label>Tipo<select id="mv-k"><option value="on">Recebida no Polaris</option><option value="off">Saiu para…</option></select></label>
+    <label><span id="mv-ul">Origem (de onde veio)</span><input id="mv-u" type="text" value="" list="units" placeholder="Ex.: P-62" autocomplete="off"></label>
+    <div style="display:flex;align-items:end"><button class="btn" type="button" id="mv-add">Registrar</button></div>
+   </fieldset>
+   <datalist id="units"><option>P-62</option><option>P-54</option><option>P-52</option><option>UMVV</option><option>PACU</option><option>BMAC</option></datalist>
+   <div class="actions"><button class="btn primary" type="submit" ${state.canWrite?"":"disabled"}>Salvar</button><button class="btn" type="button" id="e-cancel">Cancelar</button></div>
+   ${state.canWrite?`<div class="danger"><span class="hint">Correções</span><button class="btn" type="button" id="e-undo" ${String(c.historico||"").trim()?"":"disabled"}>Excluir último movimento</button><button class="btn dangerbtn" type="button" id="e-del">Excluir registro total da carga</button></div>`:""}</form>`);
+  $("#e-cancel").onclick=closeModal;
+  if(state.canWrite){$("#e-undo").onclick=()=>undoLastMove(id);$("#e-del").onclick=()=>deleteCargo(id)}
+  if(!state.canWrite){document.querySelectorAll("#f-edit input,#f-edit select,#f-edit textarea").forEach(x=>x.disabled=true);$("#f-edit button[type=submit]").hidden=true;$("#e-cancel").textContent="Fechar";
+    const rq=document.createElement("button");rq.type="button";rq.className="btn primary";rq.textContent="Quero editar";rq.onclick=()=>{closeModal();gate()};$("#e-cancel").before(rq)}
+  if(c.editadoPor&&usr&&usr.profiles){usr.profiles([c.editadoPor]).then(ps=>{const n=ps&&ps[c.editadoPor]&&ps[c.editadoPor].name;const el=$("#e-info");if(n&&el)el.textContent=`Última alteração na página: ${n}, ${fmtDT(c.editadoEm)}`+(c.sync==="pendente"?" · aguardando a planilha (gerada às 07:45, 10:30, 13:30, 16:30 e 19:30 com o nome de quem editou)":"")}).catch(()=>{})}
+  $("#mv-k").onchange=e=>{$("#mv-ul").textContent=e.target.value==="on"?"Origem (de onde veio)":"Destino (para onde foi)"};
+  $("#mv-add").onclick=()=>{
+    const d=$("#mv-d").value,k=$("#mv-k").value,u=$("#mv-u").value.trim().toUpperCase();if(!d)return;
+    if(!u){toast(k==="on"?"Informe a origem (unidade de onde a carga veio).":"Informe a unidade para onde a carga foi.");$("#mv-u").focus();return}
+    const line=`${d.slice(8,10)}/${d.slice(5,7)} - `+(k==="on"?`CONVÉS POLARIS (recebida da ${u})`:linhaSaida("",u).slice(3));
+    const ta=$("#e-historico");ta.value=line+(ta.value.trim()?"\n"+ta.value.trim():"");
+    $("#e-qtd").value=k==="on"?"1":"";$("#e-local").value=k==="on"?"SAYAN POLARIS":u;
+    toast("Movimentação incluída — clique em Salvar.");
+  };
+  $("#f-edit").addEventListener("submit",async e=>{e.preventDefault();const o=readForm(e.target);
+    if(o.qtd!==1)o.deck=null;
+    if(await save(id,o,"Carga "+o.tag+" salva."))closeModal()});
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-edit]");if(b)editCargo(b.dataset.edit)});
+
+/* ---------- correções: excluir último movimento / excluir registro total ---------- */
+function parseHistLines(c){
+  const lines=String(c.historico||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  let cy=+(c.ultimaMov||c.dataReceb||hojeSP()).slice(0,4),prev=null;
+  return lines.map(l=>{const m=l.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*-\s*(.+)$/);if(!m)return{l,d:null,t:l};
+    const mmdd=`${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;if(m[3])cy=+(m[3].length===2?"20"+m[3]:m[3]);else if(prev&&`${cy}-${mmdd}`>prev)cy--;
+    const d=`${cy}-${mmdd}`;prev=d;return{l,d,t:m[4]}});
+}
+function undoLastMove(id){
+  if(!gate())return;const c=state.cargas.get(id);if(!c)return;const H=parseHistLines(c);if(!H.length)return;
+  const rest=H.slice(1),nxt=rest[0];
+  const patch={historico:rest.map(x=>x.l).join("\n")||null,movEm:null};
+  if(nxt&&nxt.d)patch.ultimaMov=nxt.d;
+  let estado="sem alteração na situação";
+  if(nxt){const up=nxt.t.toUpperCase();
+    if(up.includes("POLARIS")){patch.qtd=1;patch.local="SAYAN POLARIS";estado="volta a ficar a bordo do Sayan Polaris"}
+    else{const u=(up.match(/CONV[EÉ]S\s+([^\s(]+(?:\s*[-/]\s*\S+)?)/)||up.match(/DESEMBARQUE\s+(PACU|BMAC)\b/)||[])[1];if(u&&!/POLARIS/.test(u)){patch.qtd=null;patch.local=u.trim();patch.deck=null;estado="volta a ficar em "+u.trim()}}}
+  openModal("Excluir último movimento",`<div class="pad"><p>Remover de <b class="dv">${esc(c.tag)}</b> o movimento:</p>
+    <p class="dv" style="font-family:var(--f-mono);background:var(--panel-2,rgba(0,0,0,.05));padding:8px 10px;border-radius:6px">${esc(H[0].l)}</p>
+    <p>Depois disso a última movimentação passa a ser <b class="dv">${nxt?esc(nxt.l):"nenhuma"}</b> e a carga ${esc(estado)}.</p>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn dangerbtn solid" id="u-ok">Excluir movimento</button><button class="btn" id="u-no">Voltar</button></div></div>`);
+  $("#u-no").onclick=()=>editCargo(id);
+  $("#u-ok").onclick=async()=>{if(await save(id,patch,"Último movimento de "+c.tag+" excluído.")){closeModal();render()}};
+}
+function deleteCargo(id){
+  if(!gate())return;const c=state.cargas.get(id);if(!c)return;
+  openModal("Excluir registro total",`<div class="pad"><p>Excluir <b class="dv">${esc(c.tag)}</b> (recebimento ${fmtD(c.dataReceb)||"sem data"}) de tudo: tabela de controle, histórico, convés e totais.</p>
+    <p class="hint">A linha também sai da planilha na próxima geração (com o seu nome). Esta ação não pode ser desfeita pelo site.</p>
+    <label style="display:block;margin-top:10px">Para confirmar, digite a TAG:<input id="d-tag" class="search" style="width:100%;margin-top:4px" autocomplete="off"></label>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn dangerbtn solid" id="d-ok" disabled>Excluir registro</button><button class="btn" id="d-no">Voltar</button></div></div>`);
+  const norm2=v=>String(v||"").replace(/\s+/g,"").toUpperCase();
+  $("#d-tag").oninput=e=>{$("#d-ok").disabled=norm2(e.target.value)!==norm2(c.tag)};
+  $("#d-no").onclick=()=>editCargo(id);
+  $("#d-ok").onclick=async()=>{state.selRows.delete(id);if(await save(id,{excluido:true,deck:null,prox:null},"Registro de "+c.tag+" excluído.")){state.cargas.delete(id);if(state.sel===id)state.sel=null;closeModal();render()}};
+}
+/* ---------- próximas movimentações: seleção em lote, programar, confirmar ou cancelar ---------- */
+const amanhaSP=()=>hojeSP(Date.now()+864e5);
+function updSel(){
+  for(const id of [...state.selRows])if(!state.cargas.has(id))state.selRows.delete(id);
+  const n=state.selRows.size;$("#selbar").hidden=n===0;$("#sel-n").textContent=n;
+  const vis=[...document.querySelectorAll("#rows .rsel")];const all=$("#sel-all");
+  all.checked=vis.length>0&&vis.every(i=>i.checked);all.indeterminate=!all.checked&&vis.some(i=>i.checked);
+  const np=[...state.cargas.values()].filter(c=>c.prox&&c.prox.data).length;$("#prox-n").textContent=np?`(${np})`:"";
+}
+$("#rows").addEventListener("change",e=>{const i=e.target.closest(".rsel");if(!i)return;i.checked?state.selRows.add(i.dataset.id):state.selRows.delete(i.dataset.id);updSel()});
+$("#sel-all").addEventListener("change",e=>{document.querySelectorAll("#rows .rsel").forEach(i=>{i.checked=e.target.checked;e.target.checked?state.selRows.add(i.dataset.id):state.selRows.delete(i.dataset.id)});updSel()});
+$("#sel-clear").onclick=()=>{state.selRows.clear();renderRows()};
+const UNITS_OR='<datalist id="units-or"><option>P-62</option><option>P-54</option><option>P-53</option><option>P-52</option><option>UMVV</option><option>PACU</option><option>BMAC</option></datalist>';
+const UNITS_DL='<datalist id="units-px"><option>P-62</option><option>P-54</option><option>P-53</option><option>P-52</option><option>UMVV</option><option>PACU</option><option>BMAC</option><option>SAYAN POLARIS</option></datalist>';
+$("#sel-prog").onclick=()=>{
+  if(!gate())return;const ids=[...state.selRows].filter(id=>state.cargas.has(id));if(!ids.length)return;
+  const tags=ids.map(id=>state.cargas.get(id).tag);
+  const fora=ids.filter(id=>state.cargas.get(id).qtd!==1);const locs=[...new Set(fora.map(id=>String(state.cargas.get(id).local||"").trim().toUpperCase()).filter(l=>l&&!/POLARIS/.test(l)))];
+  openModal("Programar próxima movimentação",`<form class="form" id="f-px" style="padding-top:12px">
+    <p class="hint" style="grid-column:1/-1;margin:0">${ids.length} carga(s): <span class="dv">${esc(tags.join(", "))}</span></p>
+    <label>Unidade (destino)<input id="px-u" required list="units-px" placeholder="Ex.: P-62" autocomplete="off"></label>
+    <label>Data da próxima movimentação<input id="px-d" type="date" required value="${amanhaSP()}"></label>
+    ${fora.length?`<label>Origem da${fora.length>1?"s":""} carga${fora.length>1?"s":""} (embarque no Polaris)<input id="px-o" required list="units-px" value="${esc(locs.length===1?locs[0]:"")}" placeholder="Unidade de onde vem${fora.length>1?"m":""}" autocomplete="off"></label>
+    <p class="hint" style="grid-column:1/-1;margin:0">${fora.length} carga(s) está(ão) fora do Polaris e vão embarcar: informe a origem.</p>`:""}
+    <p class="hint" style="grid-column:1/-1;margin:0">O destino de todas as cargas selecionadas passa a ser a unidade escolhida. Elas ficam marcadas como próxima movimentação até você confirmar ou cancelar em cada linha.</p>
+    ${UNITS_DL}
+    <div class="actions"><button class="btn primary" type="submit">Programar</button><button class="btn" type="button" id="px-no">Cancelar</button></div></form>`);
+  $("#px-no").onclick=closeModal;
+  $("#f-px").onsubmit=async ev=>{ev.preventDefault();const u=$("#px-u").value.trim().toUpperCase(),d=$("#px-d").value;if(!u||!d)return;
+    const org=fora.length?($("#px-o").value||"").trim().toUpperCase():"";if(fora.length&&!org){toast("Informe a origem das cargas que vão embarcar.");return}
+    ev.submitter&&(ev.submitter.disabled=true);let ok=0;
+    for(const id of ids){const pxo={unidade:u,data:d,em:new Date().toISOString(),por:myId||null};if(state.cargas.get(id).qtd!==1)pxo.origem=org;if(await save(id,{destino:u,prox:pxo}))ok++}
+    closeModal();state.selRows.clear();renderRows();toast(`${ok} carga(s) programada(s) para ${u} em ${fmtD(d)}.`)};
+};
+function confirmarPx(id){
+  if(!gate())return;const c=state.cargas.get(id);if(!c||!c.prox)return;const px=c.prox,bordo=c.qtd===1;
+  openModal("Confirmar movimentação",`<form class="form" id="f-pxok" style="padding-top:12px">
+    <p style="grid-column:1/-1;margin:0"><b class="dv">${esc(c.tag)}</b> — ${bordo?`sai do Sayan Polaris para <b class="dv">${esc(px.unidade)}</b>`:`chega ao Sayan Polaris vindo de <b class="dv">${esc(c.local||px.unidade)}</b>`}.</p>
+    <label>Data realizada<input id="pk-d" type="date" required value="${esc(px.data>hojeSP()?hojeSP():px.data)}"></label>
+    <label>${bordo?"Destino (para onde foi)":"Origem (recebida da unidade)"}<input id="pk-u" required list="units-px" value="${esc(bordo?px.unidade:(px.origem||(c.local&&!/POLARIS/i.test(c.local)?c.local:"")))}"></label>
+    <p class="hint" style="grid-column:1/-1;margin:0">Ao confirmar, a movimentação entra no topo do histórico, a última movimentação é atualizada e ${bordo?"a carga sai do convés (QTD vazio).":"a carga passa a contar a bordo (QTD 1) — depois posicione no convés."}</p>
+    ${UNITS_DL}
+    <div class="actions"><button class="btn primary" type="submit">Confirmar movimentação</button><button class="btn" type="button" id="pk-no">Fechar</button></div></form>`);
+  $("#pk-no").onclick=closeModal;
+  $("#f-pxok").onsubmit=async ev=>{ev.preventDefault();const d=$("#pk-d").value,u=$("#pk-u").value.trim().toUpperCase();if(!d||!u)return;
+    const dm=`${d.slice(8,10)}/${d.slice(5,7)}`;const line=bordo?linhaSaida(dm,u):`${dm} - CONVÉS POLARIS (recebida da ${u})`;
+    const hist=line+(c.historico&&String(c.historico).trim()?"\n"+String(c.historico).trim():"");
+    const patch=bordo?{qtd:null,local:u,deck:null,historico:hist,ultimaMov:d,prox:null}:{qtd:1,local:"SAYAN POLARIS",historico:hist,ultimaMov:d,prox:null};
+    if(await save(id,patch,`Movimentação de ${c.tag} confirmada.`)){closeModal();renderRows()}};
+}
+async function cancelarPx(id){
+  if(!gate())return;const c=state.cargas.get(id);if(!c||!c.prox)return;
+  openModal("Cancelar próxima movimentação",`<div class="pad"><p>Retirar <b class="dv">${esc(c.tag)}</b> da programação para <b class="dv">${esc(c.prox.unidade)}</b> em ${fmtD(c.prox.data)}? O destino continua <b class="dv">${esc(c.destino||"")}</b> — altere em Editar se precisar.</p>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn primary" id="pc-ok">Cancelar programação</button><button class="btn" id="pc-no">Voltar</button></div></div>`);
+  $("#pc-no").onclick=closeModal;
+  $("#pc-ok").onclick=async()=>{if(await save(id,{prox:null},`Programação de ${c.tag} cancelada.`)){closeModal();renderRows()}};
+}
+document.addEventListener("click",e=>{const a=e.target.closest("[data-pxok]");if(a){confirmarPx(a.dataset.pxok);return}const b=e.target.closest("[data-pxno]");if(b)cancelarPx(b.dataset.pxno)});
+
+
+/* ---------- importar Excel ---------- */
+$("#b-import").onclick=()=>{if(gate())$("#f-import").click()};
+$("#f-import").addEventListener("change",async e=>{
+  const file=e.target.files[0];e.target.value="";if(!file)return;
+  if(!window.XLSX){toast("Leitor de Excel indisponível.");return}
+  try{
+    const wb=XLSX.read(await file.arrayBuffer(),{cellDates:true});const ws=wb.Sheets["Sheet1"];if(!ws){toast("O arquivo não tem a aba Sheet1.");return}
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,range:4,raw:true,defval:null});
+    const iso=v=>v instanceof Date?new Date(v.getTime()-v.getTimezoneOffset()*6e4).toISOString().slice(0,10):null;
+    const num=v=>typeof v==="number"?v:null;
+    const recs=rows.filter(r=>r[0]).map((r,i)=>({tag:String(r[0]).trim(),eslinga:r[1],destino:r[2],peso:num(r[3])??r[3],comp:num(r[4]),larg:num(r[5]),ufEmb:r[6]!=null?String(r[6]):null,ufDes:r[7]!=null?String(r[7]):null,
+      qtd:r[8]===1?1:null,size:num(r[10]),dataReceb:iso(r[13]),local:r[14],retorno:r[15]!=null?String(r[15]):null,responsavel:r[16],historico:r[17],ultimaMov:iso(r[18]),obs:r[19],vencimento:(v=>/^\d{4}-\d{2}-\d{2}$/.test(v||"")?v:null)(iso(r[20])),ordem:i+5}));
+    const byKey=new Map();for(const [id,c] of state.cargas)byKey.set(key(c.tag)+"|"+(c.dataReceb||""),id);
+    let novos=0,atual=0;const ops=[];
+    for(const r of recs){const k=key(r.tag)+"|"+(r.dataReceb||"");const id=byKey.get(k);
+      if(id){const old=state.cargas.get(id);const m=Object.assign({},old,r,{deck:old.deck??null});ops.push([id,m]);atual++}else{const nid=newId(r.tag,r.dataReceb);state.cargas.set(nid,{});ops.push([nid,Object.assign(r,{deck:null})]);novos++}}
+    openModal("Importar "+file.name,`<div class="pad"><p>${recs.length} linhas encontradas na Sheet1: <b>${atual}</b> atualizam cargas existentes e <b>${novos}</b> são novas. Posições no convés são mantidas.</p>
+      <div class="form" style="padding:0"><div class="actions"><button class="btn primary" id="imp-ok">Importar</button><button class="btn" id="imp-no">Cancelar</button></div></div></div>`);
+    $("#imp-no").onclick=()=>{for(const [id,c] of ops)if(!Object.keys(state.cargas.get(id)||{}).length)state.cargas.delete(id);closeModal()};
+    $("#imp-ok").onclick=async()=>{$("#imp-ok").disabled=true;let ok=0;for(const [id,c] of ops){try{await db.doc("cargas/"+id).set(Object.assign(pacuFix(c),{sync:"pendente",editadoEm:new Date().toISOString(),editadoPor:myId||null}));ok++}catch(err){}}closeModal();toast(ok+" cargas importadas.")};
+  }catch(err){toast("Não foi possível ler este arquivo.")}
+});
+
+/* ---------- convés ---------- */
+const svg=$("#deck");const NS="http://www.w3.org/2000/svg";
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e}
+function wrapText(g,txt,x,y,w,h){
+  const words=String(txt||"").split(/\s+/).filter(Boolean);const max=Math.max(3,Math.floor(w/0.36));const lines=[];let cur="";
+  for(const wd of words){if((cur+" "+wd).trim().length>max&&cur){lines.push(cur);cur=wd}else cur=(cur+" "+wd).trim()}if(cur)lines.push(cur);
+  const lh=0.72,start=y+h/2-(lines.length-1)*lh/2+0.22;
+  lines.slice(0,Math.max(1,Math.floor(h/lh))).forEach((l,i)=>{const t=el("text",{x:x+w/2,y:start+i*lh,"text-anchor":"middle"},g);t.textContent=l});
+}
+function drawDeck(){
+  svg.innerHTML="";svg.classList.toggle("adjust",state.adjust);
+  el("rect",{x:-2.6,y:0,width:2.6,height:DECK_H,class:"end"},svg);
+  const st=el("text",{x:-1.3,y:DECK_H/2,class:"endtxt","text-anchor":"middle",transform:`rotate(-90 -1.3 ${DECK_H/2})`},svg);st.textContent="STERN GATE";
+  el("rect",{x:0,y:0,width:DECK_W,height:DECK_H,class:"bg"},svg);
+  const g=el("g",{},svg);
+  for(let x=1;x<DECK_W;x++)el("line",{x1:x,y1:0,x2:x,y2:DECK_H,class:"grid"},g);
+  for(let y=1;y<DECK_H;y++)el("line",{x1:0,y1:y,x2:DECK_W,y2:y,class:"grid"},g);
+  for(const [,x] of BAYS)el("line",{x1:x,y1:0,x2:x,y2:DECK_H,class:"baymid"},g);
+  for(const x of BAY_DIV)el("line",{x1:x,y1:0,x2:x,y2:DECK_H,class:"bayline"},g);
+  for(const [n,x] of BAYS){el("rect",{x:x-1.15,y:DECK_H/2-0.85,width:2.3,height:1.75,rx:.2,class:"baylblbg"},g);const t=el("text",{x,y:DECK_H/2+0.55,class:"baylbl","text-anchor":"middle"},g);t.textContent=n}
+  el("rect",{x:DECK_W-1.6,y:0.3,width:0.45,height:DECK_H-6,class:"dcl"},svg);
+  const dt=el("text",{x:DECK_W-0.55,y:DECK_H/2-2,class:"endtxt","text-anchor":"middle",transform:`rotate(-90 ${DECK_W-0.55} ${DECK_H/2-2})`,style:"font-size:.75px"},svg);dt.textContent="DANGEROUS CARGO LINE";
+  el("path",{d:`M${DECK_W} 0 L${DECK_W+3} 0 L${DECK_W+3} ${DECK_H} L${DECK_W} ${DECK_H} Z`,class:"end"},svg);
+  const bw=el("text",{x:DECK_W+1.5,y:DECK_H/2,class:"endtxt","text-anchor":"middle",transform:`rotate(-90 ${DECK_W+1.5} ${DECK_H/2})`,style:"font-size:1.8px"},svg);bw.textContent="BOW";
+  for(const f of state.fixos){const fg=el("g",{class:"fixo"},svg);el("rect",{x:f.x,y:f.y,width:f.w,height:f.h,fill:f.cor?"#"+f.cor:"#d7dde3"},fg);wrapText(fg,f.label,f.x,f.y,f.w,f.h)}
+  for(const [id,c] of onboard()){
+    if(!c.deck)continue;const d=(drag&&drag.id===id)?c.deck:fitDims(c,c.deck);
+    const px=!!(c.prox&&c.prox.data);
+    const cg=el("g",{class:"cg"+(state.sel===id?" sel":"")+(px?" px":""),"data-id":id,tabindex:0,role:"button","aria-label":"Carga "+c.tag+(px?" — próxima movimentação":"")},svg);
+    el("rect",{x:d.x,y:d.y,width:d.w,height:d.h,class:"box",fill:colorFor(c.responsavel)||"#ffffff"},cg);
+    if(px)(drawDeck._rings||(drawDeck._rings=[])).push(d);
+    wrapText(cg,c.label||c.tag,d.x,d.y,d.w,d.h);
+    if(state.adjust&&state.sel===id)el("rect",{x:d.x+d.w-0.6,y:d.y+d.h-0.6,width:0.9,height:0.9,class:"handle","data-h":id},cg);
+  }
+  if(drawDeck._rings){const rg=el("g",{class:"pxlayer"},svg);for(const d of drawDeck._rings)el("rect",{x:d.x-0.28,y:d.y-0.28,width:d.w+0.56,height:d.h+0.56,rx:.35,class:"pxring"},rg);drawDeck._rings=null}
+  renderInfo();
+  const semPos=onboard().filter(([,c])=>!c.deck).length;
+  $("#b-adddeck").textContent=semPos?`Adicionar carga ao deck (${semPos} sem posição)`:"Adicionar carga ao deck";
+}
+function renderLegend(){
+  const seen=new Set();$("#legend").innerHTML=LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join("")+`<span><i style="background:#fff"></i>Responsável a confirmar</span><span class="pxl"><i></i>Próxima movimentação</span>`;
+}
+function pt(evt){const p=svg.createSVGPoint();p.x=evt.clientX;p.y=evt.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
+let drag=null;
+svg.addEventListener("pointerdown",e=>{
+  hideCtx();const h=e.target.closest("[data-h]");const g=e.target.closest(".cg");
+  if(!g){state.sel=null;drawDeck();return}
+  const id=g.dataset.id;state.sel=id;
+  if(!state.adjust||e.button!==0){drawDeck();return}
+  const c=state.cargas.get(id);const p=pt(e);
+  drag={id,mode:h?"resize":"move",sx:p.x,sy:p.y,d0:Object.assign({},c.deck)};svg.setPointerCapture(e.pointerId);e.preventDefault();drawDeck();
+});
+svg.addEventListener("pointermove",e=>{
+  if(!drag)return;const p=pt(e);const c=state.cargas.get(drag.id);
+  /* posicionamento livre (0,01 quadrado); encaixe magnético nas bordas das cargas vizinhas e do convés. Shift = sem encaixe */
+  if(!drag.ed){const o=[];for(const [i2,c2] of onboard())if(i2!==drag.id&&c2.deck)o.push(c2.deck);for(const f of state.fixos)o.push(f);
+    drag.ed={X:[0,DECK_W,...o.flatMap(b=>[b.x,b.x+b.w])],Y:[0,DECK_H,...o.flatMap(b=>[b.y,b.y+b.h])]}}
+  const MAG=0.3,mag=(v,T)=>{let best=null,bd=MAG;for(const t of T){const dd=Math.abs(v-t);if(dd<bd){bd=dd;best=t}}return best};
+  const r2=v=>Math.round(v*100)/100,free=e.shiftKey;
+  const dx=p.x-drag.sx,dy=p.y-drag.sy,d=drag.d0;
+  if(drag.mode==="move"){let nx=d.x+dx,ny=d.y+dy;
+    if(!free){const a=mag(nx,drag.ed.X),b=mag(nx+d.w,drag.ed.X);if(a!=null&&(b==null||Math.abs(a-nx)<=Math.abs(b-nx-d.w)))nx=a;else if(b!=null)nx=b-d.w;
+      const a2=mag(ny,drag.ed.Y),b2=mag(ny+d.h,drag.ed.Y);if(a2!=null&&(b2==null||Math.abs(a2-ny)<=Math.abs(b2-ny-d.h)))ny=a2;else if(b2!=null)ny=b2-d.h}
+    c.deck={...d,x:r2(Math.max(0,Math.min(DECK_W-d.w,nx))),y:r2(Math.max(0,Math.min(DECK_H-d.h,ny)))}}
+  else{if(hasDims(c)){if(!drag.warned){drag.warned=true;toast(`Tamanho definido pelas medidas da carga (${nf(c.comp)} × ${nf(c.larg)} m). Para mudar, edite comprimento e largura.`)}return}
+    let rx=d.x+d.w+dx,ry=d.y+d.h+dy;if(!free){const a=mag(rx,drag.ed.X),b=mag(ry,drag.ed.Y);if(a!=null)rx=a;if(b!=null)ry=b}
+    c.deck={...d,w:r2(Math.max(0.5,Math.min(DECK_W-d.x,rx-d.x))),h:r2(Math.max(0.5,Math.min(DECK_H-d.y,ry-d.y)))}}
+  drawDeck();
+});
+svg.addEventListener("pointerup",async()=>{
+  if(!drag)return;const {id,d0}=drag;drag=null;const c=state.cargas.get(id);
+  if(JSON.stringify(c.deck)!==JSON.stringify(d0))await save(id,{deck:c.deck},"Posição de "+c.tag+" salva.");
+});
+svg.addEventListener("contextmenu",e=>{const g=e.target.closest(".cg");if(!g)return;e.preventDefault();state.sel=g.dataset.id;drawDeck();showCtx(g.dataset.id,e.clientX,e.clientY)});
+let lp=null;svg.addEventListener("touchstart",e=>{const g=e.target.closest(".cg");if(!g||state.adjust)return;const t=e.touches[0];lp=setTimeout(()=>showCtx(g.dataset.id,t.clientX,t.clientY),550)},{passive:true});
+svg.addEventListener("touchend",()=>clearTimeout(lp));svg.addEventListener("touchmove",()=>clearTimeout(lp),{passive:true});
+let nudgeT=null;
+document.addEventListener("keydown",e=>{
+  if(!state.adjust||!state.sel||state.tab!=="deck"||!/^Arrow/.test(e.key))return;if(e.target.closest("input,textarea,select,[contenteditable]"))return;
+  const id=state.sel,c=state.cargas.get(id);if(!c||!c.deck)return;e.preventDefault();
+  const st=e.shiftKey?1:0.1,d={...c.deck};
+  if(e.key==="ArrowLeft")d.x-=st;if(e.key==="ArrowRight")d.x+=st;if(e.key==="ArrowUp")d.y-=st;if(e.key==="ArrowDown")d.y+=st;
+  d.x=Math.round(Math.max(0,Math.min(DECK_W-d.w,d.x))*100)/100;d.y=Math.round(Math.max(0,Math.min(DECK_H-d.h,d.y))*100)/100;
+  c.deck=d;drawDeck();clearTimeout(nudgeT);nudgeT=setTimeout(()=>save(id,{deck:c.deck},"Posição de "+c.tag+" salva."),700);
+});
+svg.addEventListener("keydown",e=>{const g=e.target.closest(".cg");if(g&&(e.key==="Enter"||e.key==="ContextMenu")){const r=g.getBoundingClientRect();showCtx(g.dataset.id,r.left+r.width/2,r.top+r.height/2)}});
+
+/* ---------- dados da carga: quadro lateral (clique) e dica (passar o mouse) ---------- */
+function cargoRows(c){
+  const s=sizeOf(c),d=c.deck;
+  const R=[["Eslinga",c.eslinga],["Vencimento",fmtD(c.vencimento)],["Destino",c.destino],["Peso (kg)",typeof c.peso==="number"?nf(c.peso):c.peso],["Comprimento (m)",c.comp!=null?nf(c.comp):""],["Largura (m)",c.larg!=null?nf(c.larg):""],
+   ["Size (m²)",s==null?"":nf(s)],["No convés",d?`${nf(d.w*0.6)} × ${nf(d.h*0.6)} m`:""],["UF Embarque",c.ufEmb],["UF Desembarque",c.ufDes],
+   ["Local atual",c.local],["Data de recebimento",fmtD(c.dataReceb)],["Previsão de retorno",c.retorno],["Responsável",c.responsavel],
+   ["Última mov.",fmtD(c.ultimaMov)],["Próx. movimentação",c.prox&&c.prox.data?`${c.prox.unidade||""} · ${fmtD(c.prox.data)}`:""],["Observações",c.obs]];
+  return R.filter(([,v])=>v!=null&&String(v).trim()!=="");
+}
+function renderInfo(){
+  const box=$("#deckinfo");if(!box)return;const c=state.sel&&state.cargas.get(state.sel);
+  if(!c){box.innerHTML='<p class="hint">Clique numa carga do convés para ver todos os dados.</p>';return}
+  const cor=colorFor(c.responsavel)||"#ffffff";
+  box.innerHTML=`<h3><i style="background:${cor}"></i><span class="dv">${esc(c.tag)}</span></h3>
+   <div class="sub">${c.qtd===1?"A bordo do Sayan Polaris":"Fora do Sayan Polaris"}</div>
+   <dl>${cargoRows(c).map(([k,v])=>`<dt>${esc(k)}</dt><dd class="dv">${esc(v)}</dd>`).join("")}
+   ${c.historico?`<dt>Movimentações</dt><dd class="dv histv">${esc(c.historico)}</dd>`:""}</dl>
+   ${c.sync==="pendente"?`<div class="pendv">Alteração pendente${c.editadoEm?` · <span class="dv">${esc(fmtDT(c.editadoEm))}</span>`:""}</div>`:""}
+   <div class="acts"><button class="btn" data-ia="cargo">${state.canWrite?"Editar dados":"Ver ficha"}</button>${state.canWrite&&c.deck?'<button class="btn" data-ia="pos">Editar posição</button>':""}<button class="btn" data-ia="x">Fechar</button></div>`;
+  box.querySelectorAll("[data-ia]").forEach(b=>b.onclick=()=>{const a=b.dataset.ia,id=state.sel;
+    if(a==="cargo")editCargo(id);else if(a==="pos")editShape(id);else{state.sel=null;drawDeck()}});
+}
+const ctip=document.createElement("div");ctip.className="ctip";ctip.hidden=true;document.body.appendChild(ctip);
+function showTip(c,x,y){
+  ctip.innerHTML=`<b class="dv">${esc(c.tag)}</b><dl>${cargoRows(c).filter(([k])=>k!=="Eslinga").map(([k,v])=>`<dt>${esc(k)}</dt><dd class="dv">${esc(v)}</dd>`).join("")}</dl>`;
+  ctip.hidden=false;const r=ctip.getBoundingClientRect();
+  ctip.style.left=Math.max(8,Math.min(x+14,innerWidth-r.width-8))+"px";ctip.style.top=Math.max(8,(y+14+r.height>innerHeight?y-r.height-10:y+14))+"px";
+}
+const hideTip=()=>{ctip.hidden=true};
+svg.addEventListener("pointermove",e=>{if(drag||e.pointerType==="touch"){hideTip();return}const g=e.target.closest(".cg");const c=g&&state.cargas.get(g.dataset.id);c?showTip(c,e.clientX,e.clientY):hideTip()});
+svg.addEventListener("pointerleave",hideTip);
+document.getElementById("rows").addEventListener("pointermove",e=>{const td=e.target.closest("td.tag");const tr=td&&td.closest("tr[data-id]");const c=tr&&state.cargas.get(tr.dataset.id);c&&e.pointerType!=="touch"?showTip(c,e.clientX,e.clientY):hideTip()});
+document.getElementById("rows").addEventListener("pointerleave",hideTip);
+addEventListener("scroll",hideTip,true);
+function showCtx(id,x,y){
+  const c=state.cargas.get(id);const m=$("#ctx");
+  m.innerHTML=`<div class="ttl">${esc(c.tag)}</div>
+   <button data-a="pos">Editar posição, tamanho e texto</button>
+   <button data-a="rot">Girar 90°</button>
+   <button data-a="cargo">Editar dados da carga</button>
+   <button data-a="rm">Tirar do desenho</button>`;
+  m.hidden=false;const r=m.getBoundingClientRect();m.style.left=Math.min(x,innerWidth-r.width-8)+"px";m.style.top=Math.min(y,innerHeight-r.height-8)+"px";
+  m.querySelectorAll("button").forEach(b=>b.disabled=!state.canWrite&&b.dataset.a!=="cargo");
+  m.onclick=async ev=>{const a=ev.target.dataset.a;if(!a)return;hideCtx();
+    if(a==="cargo")editCargo(id);
+    if(a==="pos")editShape(id);
+    if(a==="rot"){const d=c.deck;await save(id,{deck:{...d,w:d.h,h:d.w,y:Math.min(d.y,DECK_H-d.w),x:Math.min(d.x,DECK_W-d.h)}},"Carga girada.")}
+    if(a==="rm")await save(id,{deck:null},c.tag+" saiu do desenho (continua a bordo na tabela).")};
+}
+function hideCtx(){$("#ctx").hidden=true}
+document.addEventListener("click",e=>{if(!e.target.closest("#ctx"))hideCtx()});
+function editShape(id){
+  const c=state.cargas.get(id);const d=fitDims(c,c.deck);const s=sizeOf(c);
+  openModal("Posição de "+c.tag,`<form class="form" id="f-shape" style="padding-top:16px">
+   <label class="wide">Texto dentro da carga<input id="s-label" value="${esc(c.label||c.tag)}"></label>
+   <label>Coluna (a partir da popa)<input id="s-x" inputmode="decimal" value="${nf(d.x,2)}"></label>
+   <label>Linha (a partir do bordo de cima)<input id="s-y" inputmode="decimal" value="${nf(d.y,2)}"></label>
+   <label>Largura (quadrados)<input id="s-w" inputmode="decimal" value="${nf(d.w,2)}"></label>
+   <label>Altura (quadrados)<input id="s-h" inputmode="decimal" value="${nf(d.h,2)}"></label>
+   <p class="hint wide" id="s-info"></p>
+   <div class="actions"><button class="btn primary" type="submit">Salvar</button>${c.comp&&c.larg?'<button class="btn" type="button" id="s-scale">Usar medidas da tabela</button>':""}<button class="btn" type="button" id="s-cancel">Cancelar</button></div></form>`);
+  const num=v=>Number(String(v).replace(",","."));
+  const info=()=>{$("#s-info").textContent=`= ${nf(num($("#s-w").value)*0.6)} m × ${nf(num($("#s-h").value)*0.6)} m no convés`+(c.comp&&c.larg?` · medidas da tabela: ${nf(c.comp)} × ${nf(c.larg)} m`:s!=null?` · área na tabela: ${nf(s)} m²`:" · sem medida na tabela")};
+  info();$("#f-shape").addEventListener("input",info);$("#s-cancel").onclick=closeModal;
+  if(hasDims(c)){$("#s-w").disabled=true;$("#s-h").disabled=true;$("#s-w").title=$("#s-h").title="Definido pelas medidas da carga (comprimento × largura)"}
+  const sc=$("#s-scale");if(sc)sc.onclick=()=>{const a=Math.ceil(c.comp/0.6-1e-9),b=Math.ceil(c.larg/0.6-1e-9);const hz=num($("#s-w").value)>=num($("#s-h").value);$("#s-w").value=hz?Math.max(a,b):Math.min(a,b);$("#s-h").value=hz?Math.min(a,b):Math.max(a,b);info()};
+  $("#f-shape").addEventListener("submit",async e=>{e.preventDefault();
+    const nd={x:num($("#s-x").value),y:num($("#s-y").value),w:num($("#s-w").value),h:num($("#s-h").value)};
+    if(Object.values(nd).some(v=>isNaN(v))||nd.w<=0||nd.h<=0){toast("Confira os números.");return}
+    nd.x=Math.max(0,Math.min(DECK_W-nd.w,nd.x));nd.y=Math.max(0,Math.min(DECK_H-nd.h,nd.y));
+    if(await save(id,{deck:nd,label:$("#s-label").value.trim()||c.tag},"Carga "+c.tag+" atualizada."))closeModal()});
+}
+function freeSpot(w,h){
+  const occ=[...state.fixos,...onboard().map(([,c])=>c.deck).filter(Boolean)];
+  for(let x=1;x<=DECK_W-w-2;x++)for(let y=0;y<=DECK_H-h;y++){if(!occ.some(o=>x<o.x+o.w&&x+w>o.x&&y<o.y+o.h&&y+h>o.y))return{x,y}}
+  return{x:1,y:0};
+}
+$("#b-adjust").onclick=()=>{if(!state.adjust&&!gate())return;state.adjust=!state.adjust;$("#b-adjust").classList.toggle("on",state.adjust);$("#b-adjust").textContent=state.adjust?"Concluir ajuste":"Ajustar local das cargas";drawDeck();if(state.adjust)toast("Arraste livremente: a carga encaixa nas bordas das vizinhas (Shift = sem encaixe). Canto laranja = tamanho. Setas = ajuste fino.")};
+$("#b-adddeck").onclick=()=>{if(!gate())return;
+  const sem=onboard().filter(([,c])=>!c.deck);
+  openModal("Adicionar carga ao deck",`<div class="pad" style="display:grid;gap:14px">
+   ${sem.length?`<div><h3 style="font-size:18px">Cargas a bordo sem posição</h3><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${sem.map(([id,c])=>`<button class="btn" data-place="${esc(id)}">${esc(c.tag)}</button>`).join("")}</div></div>`:'<p class="hint">Todas as cargas a bordo já estão no desenho.</p>'}
+   <div><h3 style="font-size:18px">Carga nova</h3><p class="hint">Lance uma carga que acabou de chegar. Ela entra a bordo (QTD = 1) e aparece no convés.</p>
+   <form class="form" id="f-new" style="padding:8px 0 0">
+    <label>TAG<input id="n-tag" required></label><label>Responsável<input id="n-resp" list="resps"></label>
+    <label>Comprimento (m)<input id="n-c" inputmode="decimal"></label><label>Largura (m)<input id="n-l" inputmode="decimal"></label>
+    <label>Data<input id="n-d" type="date" value="${hojeSP()}"></label><label>Origem da carga (recebida de)<input id="n-u" required value="" list="units2" placeholder="Ex.: P-62, PACU" autocomplete="off"></label>
+    <datalist id="resps"><option>TLT P62</option><option>MOTA</option><option>MANSERV</option><option>FRATELLI</option><option>GC OPERACOES</option><option>UTC</option></datalist>
+    <datalist id="units2"><option>P-62</option><option>P-54</option><option>P-52</option><option>UMVV</option><option>PACU</option></datalist>
+    <div class="actions"><button class="btn primary" type="submit">Adicionar ao deck</button></div></form></div></div>`);
+  document.querySelectorAll("[data-place]").forEach(b=>b.onclick=async()=>{const id=b.dataset.place,c=state.cargas.get(id);
+    const w=c.comp&&c.larg?Math.ceil(Math.max(c.comp,c.larg)/0.6-1e-9):4,h=c.comp&&c.larg?Math.ceil(Math.min(c.comp,c.larg)/0.6-1e-9):4;
+    const p=freeSpot(w,h);if(await save(id,{deck:{x:p.x,y:p.y,w,h},label:c.tag},c.tag+" colocada no deck — ajuste a posição.")){closeModal();state.sel=id;if(!state.adjust)$("#b-adjust").click()}});
+  $("#f-new").addEventListener("submit",async e=>{e.preventDefault();const num=v=>v.trim()===""?null:Number(v.replace(",","."));
+    const tag=$("#n-tag").value.trim();if(!tag)return;const comp=num($("#n-c").value),larg=num($("#n-l").value);const d=$("#n-d").value||hojeSP();const u=$("#n-u").value.trim().toUpperCase();if(!u){toast("Informe a origem da carga.");$("#n-u").focus();return}
+    const w=comp&&larg?Math.ceil(Math.max(comp,larg)/0.6-1e-9):4,h=comp&&larg?Math.ceil(Math.min(comp,larg)/0.6-1e-9):4;const p=freeSpot(w,h);
+    const o={tag,destino:"A CONFIRMAR",comp,larg,ufEmb:"A CONFIRMAR",qtd:1,size:comp&&larg?Math.ceil(comp*larg):null,dataReceb:d,local:"SAYAN POLARIS",responsavel:$("#n-resp").value.trim()||null,
+      historico:`${d.slice(8,10)}/${d.slice(5,7)} - CONVÉS POLARIS (recebida da ${u})`,ultimaMov:d,obs:"A CONFIRMAR",deck:{x:p.x,y:p.y,w,h},label:tag,origem:"pagina",origemUnidade:u};
+    if(semArea(o))o.size=0;
+    const id=newId(tag,d);if(await save(id,o,tag+" adicionada ao deck.")){closeModal();state.sel=id;if(!state.adjust)$("#b-adjust").click()}});
+};
+
+/* ---------- abas e filtros ---------- */
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>setTab(t.dataset.tab));
+function setTab(tab){state.tab=tab;document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
+  for(const p of ["controle","historico","deck"])$("#p-"+p).hidden=p!==tab;try{localStorage.setItem("dcp-tab",tab)}catch(e){}render()}
+/* cards Petrobras / Navio / Total: filtram a tabela de controle (cargas a bordo) */
+const GRP_L={pb:"Petrobras",nav:"Navio (GC + Fratelli)"};
+function setGrp(g){state.grp=(g==="pb"||g==="nav")?g:null;
+  document.querySelectorAll("[data-grp]").forEach(x=>x.setAttribute("aria-pressed",String(!!g&&x.dataset.grp===g)));
+  const bx=$("#grp-x");if(state.grp){$("#grp-l").textContent=GRP_L[state.grp];bx.hidden=false}else bx.hidden=true}
+document.querySelectorAll("[data-grp]").forEach(b=>b.onclick=()=>{const g=b.dataset.grp;
+  if(b.getAttribute("aria-pressed")==="true"){setGrp(null);renderRows();return}
+  state.filter="bordo";document.querySelectorAll("[data-f]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.f==="bordo"));
+  state.q="";const qi=$("#q");if(qi)qi.value="";state.local="";state.dest.clear();saveDest();if(state.rot==="so"){state.rot="mostrar";$("#f-rot").value="mostrar";try{localStorage.setItem("dcp-rot","mostrar")}catch(e){}}
+  setGrp(g);if(state.tab!=="controle")setTab("controle");renderRows();
+  const t=document.getElementById("ctl");if(t)t.scrollIntoView({behavior:"smooth",block:"start"})});
+$("#grp-x").onclick=()=>{setGrp(null);renderRows()};
+document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.f;if(state.filter!=="bordo")setGrp(null);document.querySelectorAll("[data-f]").forEach(x=>x.setAttribute("aria-pressed",x===b));renderRows()});
+let qt;$("#q").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{state.q=e.target.value;renderRows()},150)});
+$("#qh").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{state.qh=e.target.value;renderHist()},150)});
+
+function render(){renderKpis();if(state.tab==="controle")renderRows();else if(state.tab==="historico")renderHist();else drawDeck()}
+
+/* =====================================================================
+   Projeto de Controle de Cargas — login próprio (Supabase), papéis e dados
+   Visitante: só vê. Usuário aprovado: edita cargas. Administrador: edita
+   cargas e aprova usuários. A estrutura do site só muda pelo GitHub.
+   ===================================================================== */
+const CFG=window.CONTROLE_CARGAS_CONFIG||{};
+let sb=null;state.perfil=null;state.user=null;state.perfis=[];
+const ROLE_TXT={admin:"Administrador",usuario:"Usuário",pendente:"Aguardando aprovação",recusado:"Acesso recusado",visitante:"Visitante · só leitura"};
+
+/* ---- camada de dados: mesma interface usada pelo resto da página (doc/collection/onSnapshot) ---- */
+function makeDb(client){
+  const tab=col=>col==="meta"?"meta":"cargas";
+  const snapDoc=row=>({exists:!!row,data:()=>row?row.data:undefined});
+  const snapCol=map=>{const docs=[...map].map(([id,d])=>({id,data:()=>d}));return{docs,size:docs.length}};
+  async function loadAll(table){
+    const out=new Map();let from=0;const step=1000;
+    for(;;){const {data,error}=await client.from(table).select("id,data").order("id").range(from,from+step-1);
+      if(error)throw error;for(const r of data)out.set(r.id,r.data);if(data.length<step)break;from+=step}
+    return out;
+  }
+  return{
+    doc(path){const [col,id]=path.split("/");const table=tab(col);return{
+      async set(data){
+        const body=JSON.parse(JSON.stringify(data));
+        const {error}=await client.from(table).upsert({id,data:body},{onConflict:"id"});
+        if(error){const e=new Error(error.message);e.code=/permission|policy|row-level/i.test(error.message)?"invalid_argument":"erro";throw e}
+      },
+      onSnapshot(cb,onErr){
+        const load=()=>client.from(table).select("id,data").eq("id",id).maybeSingle().then(({data,error})=>{if(error){onErr&&onErr(error);return}cb(snapDoc(data))});
+        load();
+        client.channel("doc-"+table+"-"+id).on("postgres_changes",{event:"*",schema:"public",table,filter:"id=eq."+id},load).subscribe();
+        return()=>{};
+      }}},
+    collection(col){const table=tab(col);return{
+      onSnapshot(cb,onErr){
+        let map=new Map(),t=null;
+        const emit=()=>{clearTimeout(t);t=setTimeout(()=>cb(snapCol(map)),80)};
+        loadAll(table).then(m=>{map=m;cb(snapCol(map))}).catch(e=>onErr&&onErr(e));
+        client.channel("col-"+table).on("postgres_changes",{event:"*",schema:"public",table},p=>{
+          if(p.eventType==="DELETE"){map.delete(p.old.id)}else if(p.new&&p.new.id){map.set(p.new.id,p.new.data)}emit();
+        }).subscribe(st=>{if(st==="CHANNEL_ERROR"||st==="TIMED_OUT")setInterval(()=>loadAll(table).then(m=>{map=m;emit()}).catch(()=>{}),30000)});
+        return()=>{};
+      }}}
+  };
+}
+/* nomes de quem editou (para "Última alteração na página: Fulano") */
+function makeUsr(client){
+  return{async profiles(ids){
+    const {data}=await client.from("perfis_publicos").select("id,nome").in("id",ids.filter(Boolean));
+    const o={};for(const p of data||[])o[p.id]={name:p.nome};return o;
+  }};
+}
+
+/* ---- papel atual ---- */
+function computeRole(){
+  const p=state.perfil;
+  if(!state.user){state.role="visitante";state.canWrite=false}
+  else if(!p||p.status==="pendente"){state.role="pendente";state.canWrite=false}
+  else if(p.status==="recusado"){state.role="recusado";state.canWrite=false}
+  else{state.role=p.papel==="admin"?"admin":"usuario";state.canWrite=true}
+  state.isAdmin=state.role==="admin";
+  showRole();applyRO();render();
+}
+function showRole(){
+  const r=state.role,el=$("#role");
+  el.className="role "+(r==="admin"?"owner":r==="usuario"?"editor":"");
+  el.textContent=ROLE_TXT[r]||ROLE_TXT.visitante;
+  if(state.user&&state.perfil&&state.perfil.nome)el.title=state.perfil.nome+" · "+state.user.email;
+  const n=state.perfis.filter(p=>p.status==="pendente").length;
+  $("#b-acessos").hidden=!state.isAdmin;$("#b-acessos").textContent=n?`Acessos (${n} pedido${n>1?"s":""})`:"Acessos";
+  $("#b-acessos").classList.toggle("on",!!n);
+  const bl=$("#b-login");bl.textContent=state.user?"Sair":"Entrar";bl.title=state.user?("Conectado como "+state.user.email):"Entrar ou criar conta";
+}
+function applyRO(){
+  const r=state.role;$("#ro").hidden=state.canWrite;
+  $("#ro").textContent=r==="pendente"?"Seu cadastro aguarda a aprovação de um administrador. Enquanto isso, você vê tudo, mas não edita."
+    :r==="recusado"?"Seu acesso de edição foi recusado por um administrador. Você continua vendo tudo."
+    :"Você está em modo visualização. Para editar cargas, entre com a sua conta (ou crie uma e aguarde a aprovação de um administrador).";
+}
+
+/* ---- qualquer ação de edição de quem não pode editar passa por aqui ---- */
+function gate(){
+  if(state.canWrite)return true;
+  if(!state.user){abrirLogin();return false}
+  if(state.role==="pendente"){openModal("Aguardando aprovação",`<div class="pad"><p>Seu cadastro (<b>${esc(state.user.email)}</b>) foi recebido e aguarda a aprovação de um administrador.</p><p class="hint">Quando for aprovado, recarregue a página para editar.</p></div>`);return false}
+  openModal("Acesso recusado",`<div class="pad"><p>Um administrador recusou o acesso de edição para <b>${esc(state.user.email)}</b>. Se isso for um engano, fale com o administrador.</p></div>`);
+  return false;
+}
+
+/* ---- entrar / criar conta / recuperar senha ---- */
+function abrirLogin(aba){
+  aba=aba||"entrar";
+  openModal("Entrar no Controle de Cargas",`<div class="pad">
+    <div class="tabsl" role="tablist" style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="chip" data-la="entrar" aria-pressed="${aba==="entrar"}">Entrar</button>
+      <button class="chip" data-la="criar" aria-pressed="${aba==="criar"}">Criar conta</button>
+      <button class="chip" data-la="senha" aria-pressed="${aba==="senha"}">Esqueci a senha</button></div>
+    ${aba==="entrar"?`<form class="form" id="f-login">
+      <label class="wide">E-mail<input id="l-email" type="email" required autocomplete="email"></label>
+      <label class="wide">Senha<input id="l-senha" type="password" required autocomplete="current-password" minlength="8"></label>
+      <div class="actions"><button class="btn primary" type="submit">Entrar</button><button class="btn" type="button" data-close>Cancelar</button></div></form>`
+    :aba==="criar"?`<form class="form" id="f-criar">
+      <label>Nome<input id="c-nome" required autocomplete="name"></label>
+      <label>E-mail<input id="c-email" type="email" required autocomplete="email"></label>
+      <label>Senha (mín. 8)<input id="c-senha" type="password" required minlength="8" autocomplete="new-password"></label>
+      <label>Função / motivo<input id="c-mot" placeholder="Ex.: técnico de cargas do turno B"></label>
+      <p class="hint wide">Você recebe um e-mail para confirmar o endereço. Depois, um administrador aprova o seu acesso de edição. Até lá, você vê tudo em modo leitura.</p>
+      <div class="actions"><button class="btn primary" type="submit">Criar conta</button><button class="btn" type="button" data-close>Cancelar</button></div></form>`
+    :`<form class="form" id="f-senha">
+      <label class="wide">E-mail da conta<input id="s-email" type="email" required autocomplete="email"></label>
+      <p class="hint wide">Enviamos um link para você criar uma senha nova.</p>
+      <div class="actions"><button class="btn primary" type="submit">Enviar link</button><button class="btn" type="button" data-close>Cancelar</button></div></form>`}
+  </div>`);
+  document.querySelectorAll("[data-la]").forEach(b=>b.onclick=()=>abrirLogin(b.dataset.la));
+  document.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeModal);
+  const back=location.origin+location.pathname;
+  const fl=$("#f-login");if(fl)fl.onsubmit=async e=>{e.preventDefault();
+    const {error}=await sb.auth.signInWithPassword({email:$("#l-email").value.trim(),password:$("#l-senha").value});
+    if(error){toast(/confirm/i.test(error.message)?"Confirme o seu e-mail pelo link que enviamos antes de entrar.":"E-mail ou senha incorretos.");return}
+    closeModal();toast("Bem-vindo!")};
+  const fc=$("#f-criar");if(fc)fc.onsubmit=async e=>{e.preventDefault();
+    const email=$("#c-email").value.trim();
+    const {error}=await sb.auth.signUp({email,password:$("#c-senha").value,options:{emailRedirectTo:back,data:{nome:$("#c-nome").value.trim(),motivo:$("#c-mot").value.trim()||null}}});
+    if(error){toast("Não foi possível criar a conta: "+error.message);return}
+    openModal("Confira o seu e-mail",`<div class="pad"><p>Enviamos um link de confirmação para <b>${esc(email)}</b>. Depois de confirmar, um administrador aprova o seu acesso.</p></div>`)};
+  const fs=$("#f-senha");if(fs)fs.onsubmit=async e=>{e.preventDefault();
+    const {error}=await sb.auth.resetPasswordForEmail($("#s-email").value.trim(),{redirectTo:back});
+    toast(error?"Não foi possível enviar: "+error.message:"Link enviado. Confira o seu e-mail.");if(!error)closeModal()};
+}
+function novaSenha(){
+  openModal("Criar nova senha",`<form class="form" id="f-ns" style="padding-top:16px">
+    <label class="wide">Nova senha (mín. 8)<input id="ns" type="password" required minlength="8" autocomplete="new-password"></label>
+    <div class="actions"><button class="btn primary" type="submit">Salvar senha</button></div></form>`);
+  $("#f-ns").onsubmit=async e=>{e.preventDefault();const {error}=await sb.auth.updateUser({password:$("#ns").value});toast(error?"Erro: "+error.message:"Senha alterada.");if(!error)closeModal()};
+}
+$("#b-login").onclick=async()=>{if(state.user){await sb.auth.signOut();toast("Você saiu.")}else abrirLogin()};
+
+/* ---- painel de administradores: aprovar usuários e definir papéis ---- */
+$("#b-acessos").onclick=renderAcessos;
+async function carregarPerfis(){
+  if(!state.isAdmin){state.perfis=[];return}
+  const {data}=await sb.from("perfis").select("*").order("criado_em",{ascending:false});
+  state.perfis=data||[];showRole();
+}
+function renderAcessos(){
+  if(!state.isAdmin)return;
+  const ps=state.perfis;const pend=ps.filter(p=>p.status==="pendente"),out=ps.filter(p=>p.status!=="pendente");
+  const linha=p=>`<div class="r"><b>${esc(p.nome||p.email)}</b><span>${esc(p.email)} · cadastro ${fmtDT(p.criado_em)}${p.motivo?" · "+esc(p.motivo):""}${p.decidido_em?"<br>decidido em "+fmtDT(p.decidido_em):""}<br>
+    ${p.id===state.user.id?'<span class="role owner">Você</span>':p.status==="pendente"?`<button class="btn small primary" data-ap="${p.id}">Aprovar como Usuário</button> <button class="btn small" data-apa="${p.id}">Aprovar como Administrador</button> <button class="btn small" data-rc="${p.id}">Recusar</button>`
+     :`<select data-pp="${p.id}" class="search" style="width:auto"><option value="usuario|aprovado" ${p.papel==="usuario"&&p.status==="aprovado"?"selected":""}>Usuário</option><option value="admin|aprovado" ${p.papel==="admin"&&p.status==="aprovado"?"selected":""}>Administrador</option><option value="usuario|recusado" ${p.status==="recusado"?"selected":""}>Sem acesso (recusado)</option></select>`}</span></div>`;
+  openModal("Acessos ao Controle de Cargas",`<div class="roles">
+    <h3 style="font-size:19px">Pedidos aguardando aprovação</h3>${pend.length?pend.map(linha).join(""):'<p class="hint">Nenhum pedido.</p>'}
+    <h3 style="font-size:19px">Usuários</h3>${out.map(linha).join("")}
+    <p class="hint">Usuário: edita cargas, movimentações, próximas movimentações e o convés, e pode excluir registros. Administrador: tudo isso e também aprova usuários e escolhe papéis. Ninguém altera a estrutura do site por aqui — ela só muda pelo repositório do GitHub. Cada aprovação fica registrada no histórico de alterações.</p></div>`);
+  const dec=async(id,papel,status)=>{const {error}=await sb.from("perfis").update({papel,status}).eq("id",id);
+    toast(error?"Não foi possível salvar: "+error.message:"Acesso atualizado.");await carregarPerfis();renderAcessos()};
+  document.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>dec(b.dataset.ap,"usuario","aprovado"));
+  document.querySelectorAll("[data-apa]").forEach(b=>b.onclick=()=>dec(b.dataset.apa,"admin","aprovado"));
+  document.querySelectorAll("[data-rc]").forEach(b=>b.onclick=()=>dec(b.dataset.rc,"usuario","recusado"));
+  document.querySelectorAll("[data-pp]").forEach(s=>s.onchange=()=>{const [pa,st]=s.value.split("|");dec(s.dataset.pp,pa,st)});
+}
+
+/* ---- sessão ---- */
+async function aplicarSessao(session){
+  state.user=session?session.user:null;myId=state.user?state.user.id:null;state.perfil=null;
+  if(state.user){const {data}=await sb.from("perfis").select("*").eq("id",state.user.id).maybeSingle();state.perfil=data||null}
+  computeRole();await carregarPerfis();
+}
+
+/* ---------- inicialização ---------- */
+buildAdd();renderLegend();
+try{const t=localStorage.getItem("dcp-tab");if(t&&["controle","historico","deck"].includes(t))setTab(t);else render()}catch(e){render()}
+state.canWrite=false;state.role="visitante";applyRO();showRole();
+(async()=>{
+  if(!window.supabase||!CFG.supabaseUrl||!CFG.supabaseAnonKey||/COLE_AQUI/.test(CFG.supabaseUrl)){
+    $("#baseinfo").textContent="Site ainda não conectado ao banco (config.js sem as chaves do Supabase).";return}
+  sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  db=makeDb(sb);usr=makeUsr(sb);
+  sb.auth.onAuthStateChange((ev,session)=>{if(ev==="PASSWORD_RECOVERY")novaSenha();aplicarSessao(session)});
+  const {data:{session}}=await sb.auth.getSession();await aplicarSessao(session);
+  let t;const rr=()=>{clearTimeout(t);t=setTimeout(render,60)};
+  db.collection("cargas").onSnapshot(s=>{state.cargas=new Map(s.docs.filter(x=>!(x.data()||{}).excluido).map(x=>[x.id,JSON.parse(JSON.stringify(x.data()))]));if(!s.size)$("#baseinfo").textContent="Nenhuma carga ainda. Use “Adicionar carga”.";rr()},()=>toast("A conexão com os dados caiu. Recarregue a página."));
+  db.doc("meta/estado").onSnapshot(s=>{const m=s.exists?s.data():{};state.meta=m;state.fixos=Array.isArray(m.fixos)?m.fixos:[];rr()});
+  sb.channel("perfis-adm").on("postgres_changes",{event:"*",schema:"public",table:"perfis"},()=>{carregarPerfis();if(state.user)sb.from("perfis").select("*").eq("id",state.user.id).maybeSingle().then(({data})=>{const muda=JSON.stringify(data)!==JSON.stringify(state.perfil);state.perfil=data||null;if(muda)computeRole()})}).subscribe();
+})();
+})();
+</script>
+<script>
+/* ---------- idioma (PT-BR / EN / NO) ---------- */
+(function(){
+"use strict";
+const DICT={en:{
+"MPSV · Controle de cargas e convés":"MPSV · Cargo control and deck","Carregando dados…":"Loading data…","Verificando acesso…":"Checking access…",
+"A bordo":"On board","Ocupação do convés":"Deck occupancy","Última movimentação":"Last movement","Aguardando Excel":"Waiting for Excel",
+"Controle de cargas":"Cargo control","Histórico":"History","Visualizar deck":"View deck",
+"Você está vendo em modo leitura: só quem tem acesso de edição pode alterar cargas.":"You are in read-only mode: only users with edit access can change cargo.",
+"Você está em modo visualização. Ao clicar em editar ou adicionar, você pode pedir acesso de Colaborador.":"You are in view mode. When you click edit or add, you can request Contributor access.",
+"Movimentadas (7 dias)":"Moved (7 days)","Movimentadas (14 dias)":"Moved (14 days)","Cargas a bordo":"Cargo on board","Origem da carga (unidade de onde veio)":"Cargo origin (unit it came from)","Origem da carga (recebida de)":"Cargo origin (received from)","Origem (de onde veio)":"Origin (came from)","Destino (para onde foi)":"Destination (went to)","Origem (recebida da unidade)":"Origin (received from unit)","Informe a origem da carga.":"Enter the cargo origin.","Informe a origem das cargas que vão embarcar.":"Enter the origin of the cargo to be loaded.","Correções":"Corrections","Excluir último movimento":"Delete last movement","Excluir registro total da carga":"Delete entire cargo record","Excluir movimento":"Delete movement","Excluir registro total":"Delete entire record","Excluir registro":"Delete record","Para confirmar, digite a TAG:":"To confirm, type the TAG:","Datas no horário de São Paulo (UTC−3, BRT) · hoje:":"Dates in São Paulo time (UTC−3, BRT) · today:","Colunas":"Columns","Mostrar todas":"Show all","Só TAG":"TAG only","Deixe pelo menos uma coluna visível.":"Keep at least one column visible.","Próxima movimentação":"Next movement","Próximas movimentações":"Upcoming movements","carga(s) selecionada(s)":"cargo item(s) selected","Programar próxima movimentação":"Schedule next movement","Limpar seleção":"Clear selection","Unidade (destino)":"Unit (destination)","Data da próxima movimentação":"Next movement date","Programar":"Schedule","Confirmar":"Confirm","Confirmar movimentação":"Confirm movement","Data realizada":"Date done","Recebida da unidade":"Received from unit","Cancelar programação":"Cancel schedule","Voltar":"Back","Próx. movimentação":"Next movement","Cancelar próxima movimentação":"Cancel next movement","Expandir colunas":"Expand columns","Restaurar larguras":"Restore widths","Marcar todos":"Select all","Limpar":"Clear","Ocupação Petrobras":"Petrobras occupancy","Imprimir relatório":"Print report","Gerar PDF":"Generate PDF","Tabela com as cargas a bordo":"Table with cargo on board","Tabela como está na tela agora (filtros, busca e colunas escolhidas)":"Table as currently shown (filters, search and chosen columns)","Navio":"Vessel","Navio (GC + Fratelli)":"Vessel (GC + Fratelli)","Remover o filtro do card":"Remove card filter","Cargas do navio (GC e Fratelli)":"Vessel cargo (GC and Fratelli)","Total cargas Petrobras":"Total Petrobras cargo","Cargas projeto":"Project cargo","Cargas do navio (GC)":"Vessel cargo (GC)","Petrobras em geral":"Petrobras general","Clique numa carga do convés para ver todos os dados.":"Click a cargo on the deck to see all its data.","No convés":"On deck","A bordo do Sayan Polaris":"On board Sayan Polaris","Fora do Sayan Polaris":"Off Sayan Polaris","Alteração pendente":"Pending change","Editar dados":"Edit data","Ver ficha":"View details","Editar posição":"Edit position","Fechar":"Close","Movimentadas (30 dias)":"Moved (30 days)","Todas":"All","Todos":"All","Local atual":"Current location","Arraste para ajustar a largura · duplo clique restaura":"Drag to adjust width · double-click resets","Rotação finalizada":"Finished rotation","Mostrar":"Show","Ocultar":"Hide","Só finalizadas":"Finished only","Importar Excel":"Import Excel",
+"TAG":"TAG","Destino":"Destination","Peso (kg)":"Weight (kg)","Comp. (m)":"Length (m)","Larg. (m)":"Width (m)","UF Embarque":"Loading UF","UF Desembarque":"Unloading UF",
+"QTD":"QTY","Size (m²)":"Size (m²)","Recebimento":"Received","Retorno":"Return","Responsável":"Owner company","Movimentações":"Movements","Última mov.":"Last move","Observações":"Remarks",
+"Editar":"Edit","Ver":"View","Adicionar carga":"Add cargo","Movimentações registradas":"Recorded movements",
+"O histórico é montado a partir da coluna de movimentações de cada carga.":"The history is built from each cargo's movement column.",
+"Ajustar local das cargas":"Adjust cargo position","Concluir ajuste":"Finish adjusting","Adicionar carga ao deck":"Add cargo to deck",
+"Convés 49,2 m × 18,25 m · 1 quadrado = 0,6 m · botão direito na carga para editar":"Deck 49.2 m × 18.25 m · 1 square = 0.6 m · right-click a cargo to edit",
+"Editar carga":"Edit cargo","Proprietário":"Owner","Editor":"Editor","Visualizador":"Viewer","Acesso não identificado":"Access not identified","Acessos":"Access",
+"Comprimento (m)":"Length (m)","Largura (m)":"Width (m)","Size (m²) — se não houver medidas":"Size (m²) — if no dimensions","Data de recebimento":"Date received",
+"Previsão de retorno":"Expected return","Eslinga":"Sling","A bordo do Sayan Polaris?":"On board Sayan Polaris?","Sim (QTD = 1)":"Yes (QTY = 1)","Não (QTD vazio)":"No (QTY empty)",
+"Movimentações (uma por linha, a mais recente em cima — DD/MM - CONVÉS …)":"Movements (one per line, newest on top — DD/MM - CONVÉS …)",
+"A carga entra na página na hora e vai para a planilha oficial na próxima atualização automática (07:30, 08:00 ou 08:30).":"The cargo appears on the page right away and goes to the official spreadsheet at the next automatic update (07:30, 08:00 or 08:30).",
+"Registrar movimentação (entra no topo das movimentações)":"Record movement (added at the top of the movements)","Data":"Date","Tipo":"Type","Recebida no Polaris":"Received on Polaris","Saiu para…":"Left for…",
+"Unidade":"Unit","Registrar":"Record","Salvar":"Save","Cancelar":"Cancel","Fechar":"Close","Quero editar":"I want to edit",
+"Editar posição, tamanho e texto":"Edit position, size and text","Girar 90°":"Rotate 90°","Editar dados da carga":"Edit cargo data","Tirar do desenho":"Remove from drawing",
+"Texto dentro da carga":"Text inside the cargo","Coluna (a partir da popa)":"Column (from the stern)","Linha (a partir do bordo de cima)":"Row (from the top side)",
+"Largura (quadrados)":"Width (squares)","Altura (quadrados)":"Height (squares)","Usar medidas da tabela":"Use table dimensions",
+"Cargas a bordo sem posição":"Cargo on board without a position","Todas as cargas a bordo já estão no desenho.":"All cargo on board is already on the drawing.",
+"Carga nova":"New cargo","Lance uma carga que acabou de chegar. Ela entra a bordo (QTD = 1) e aparece no convés.":"Enter cargo that just arrived. It goes on board (QTY = 1) and shows on the deck.",
+"Recebida de":"Received from","Adicionar ao deck":"Add to deck","Importar":"Import",
+"Solicitar acesso":"Request access","Gostaria de solicitar poder de":"Would you like to request","para editar cargas no site?":"rights to edit cargo on the site?","Colaborador":"Contributor",
+"Nome":"Name","Email":"Email","Motivo (opcional)":"Reason (optional)","Ex.: técnico de cargas do turno B":"E.g.: cargo technician, shift B",
+"Você entra com a sua própria conta do Claude, então não precisa criar senha. O pedido vai para o proprietário aprovar.":"You sign in with your own Claude account, so no password is needed. The request goes to the owner for approval.",
+"Sim, solicitar":"Yes, request","Não":"No","Pedido de acesso enviado":"Access request sent","Seu pedido para ser":"Your request to become",
+"Somente visualização":"View only","Não foi possível enviar":"Could not send",
+"Seu acesso a esta página é de visualização. Para pedir acesso de Colaborador, fale com o proprietário (Sergio) para compartilhar a página com você como":"Your access to this page is view-only. To request Contributor access, ask the owner (Sergio) to share the page with you as",
+"Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Your current access does not allow sending requests here. Ask the owner (Sergio) to share the page with you as",
+"Acessos ao Deck Cargo Plan":"Deck Cargo Plan access","Pedidos":"Requests","Pré-aprovados":"Pre-approved","Usuários":"Users","Nenhum pedido.":"No requests.","Aprovar como Editor":"Approve as Editor","Recusar":"Decline",
+"Você. Edita tudo, publica a página e aprova acessos.":"You. Edit everything, publish the page and approve access.",
+"Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
+"As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use “Add cargo” below to enter the first one.",
+"As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use \"Add cargo\" below to enter the first one.",
+"A BORDO":"ON BOARD","SAIU":"LEFT","REGISTRO":"RECORD","Buscar TAG, destino, responsável…":"Search TAG, destination, owner company…","Buscar":"Search","Filtrar por TAG…":"Filter by TAG…","Filtrar histórico":"Filter history","Filtro":"Filter",
+"Convés do Sayan Polaris com as cargas":"Sayan Polaris deck with cargo",
+"Abra esta página no Claude para ver os dados.":"Open this page in Claude to see the data.","Entre na sua conta para ver os dados do convés.":"Sign in to see the deck data.",
+"Nenhuma carga ainda. Use “Adicionar carga”.":"No cargo yet. Use “Add cargo”.",
+"A conexão com os dados caiu. Recarregue a página.":"The data connection dropped. Reload the page.","Arraste livremente: a carga encaixa nas bordas das vizinhas (Shift = sem encaixe). Canto laranja = tamanho. Setas = ajuste fino.":"Drag freely: cargo snaps to neighbouring edges (Shift = no snap). Orange corner = size. Arrows = fine adjust.",
+"Confira os números.":"Check the numbers.","Informe a TAG.":"Enter the TAG.","Leitor de Excel indisponível.":"Excel reader unavailable.","Movimentação incluída — clique em Salvar.":"Movement added — click Save.",
+"Não foi possível ler este arquivo.":"Could not read this file.","Não foi possível salvar a decisão.":"Could not save the decision.","Nível alterado.":"Level changed.","O arquivo não tem a aba Sheet1.":"The file has no Sheet1 tab.",
+"Pedido enviado ao proprietário.":"Request sent to the owner.","Sem conexão com o banco desta página.":"No connection to this page's database.","Seu acesso é somente visualização.":"Your access is view-only.",
+"Não foi possível salvar. Tente de novo.":"Could not save. Try again.","O banco desta página está cheio.":"This page's database is full.","Carga girada.":"Cargo rotated.","Pedido recusado.":"Request declined.",
+"Fratelli":"Fratelli","Petrobras / ACC / TLT":"Petrobras / ACC / TLT","GC Operações":"GC Operações"},no:{"MPSV · Controle de cargas e convés":"MPSV · Lastkontroll og dekk","Carregando dados…":"Laster data…","Verificando acesso…":"Sjekker tilgang…",
+"A bordo":"Om bord","Ocupação do convés":"Dekksbelegg","Última movimentação":"Siste bevegelse","Aguardando Excel":"Venter på Excel",
+"Controle de cargas":"Lastkontroll","Histórico":"Historikk","Visualizar deck":"Vis dekk",
+"Você está vendo em modo leitura: só quem tem acesso de edição pode alterar cargas.":"Du er i lesemodus: bare brukere med redigeringstilgang kan endre last.",
+"Você está em modo visualização. Ao clicar em editar ou adicionar, você pode pedir acesso de Colaborador.":"Du er i visningsmodus. Når du klikker rediger eller legg til, kan du be om bidragsytertilgang.",
+"Movimentadas (7 dias)":"Flyttet (7 dager)","Movimentadas (14 dias)":"Flyttet (14 dager)","Cargas a bordo":"Last om bord","Origem da carga (unidade de onde veio)":"Lastens opprinnelse (enhet den kom fra)","Origem da carga (recebida de)":"Lastens opprinnelse (mottatt fra)","Origem (de onde veio)":"Opprinnelse (kom fra)","Destino (para onde foi)":"Destinasjon (gikk til)","Origem (recebida da unidade)":"Opprinnelse (mottatt fra enhet)","Informe a origem da carga.":"Oppgi lastens opprinnelse.","Informe a origem das cargas que vão embarcar.":"Oppgi opprinnelsen til lasten som skal lastes.","Correções":"Korrigeringer","Excluir último movimento":"Slett siste bevegelse","Excluir registro total da carga":"Slett hele lastposten","Excluir movimento":"Slett bevegelse","Excluir registro total":"Slett hele posten","Excluir registro":"Slett post","Para confirmar, digite a TAG:":"For å bekrefte, skriv TAG:","Datas no horário de São Paulo (UTC−3, BRT) · hoje:":"Datoer i São Paulo-tid (UTC−3, BRT) · i dag:","Colunas":"Kolonner","Mostrar todas":"Vis alle","Só TAG":"Kun TAG","Deixe pelo menos uma coluna visível.":"La minst én kolonne være synlig.","Próxima movimentação":"Neste bevegelse","Próximas movimentações":"Kommende bevegelser","carga(s) selecionada(s)":"last valgt","Programar próxima movimentação":"Planlegg neste bevegelse","Limpar seleção":"Fjern valg","Unidade (destino)":"Enhet (destinasjon)","Data da próxima movimentação":"Dato for neste bevegelse","Programar":"Planlegg","Confirmar":"Bekreft","Confirmar movimentação":"Bekreft bevegelse","Data realizada":"Utført dato","Recebida da unidade":"Mottatt fra enhet","Cancelar programação":"Avbryt plan","Voltar":"Tilbake","Próx. movimentação":"Neste bevegelse","Cancelar próxima movimentação":"Avbryt neste bevegelse","Expandir colunas":"Utvid kolonner","Restaurar larguras":"Gjenopprett bredder","Marcar todos":"Velg alle","Limpar":"Tøm","Ocupação Petrobras":"Petrobras-belegg","Imprimir relatório":"Skriv ut rapport","Gerar PDF":"Lag PDF","Tabela com as cargas a bordo":"Tabell med last om bord","Tabela como está na tela agora (filtros, busca e colunas escolhidas)":"Tabell slik den vises nå (filtre, søk og valgte kolonner)","Navio":"Skip","Navio (GC + Fratelli)":"Skip (GC + Fratelli)","Remover o filtro do card":"Fjern kortfilter","Cargas do navio (GC e Fratelli)":"Skipets last (GC og Fratelli)","Total cargas Petrobras":"Total Petrobras-last","Cargas projeto":"Prosjektlast","Cargas do navio (GC)":"Skipets last (GC)","Petrobras em geral":"Petrobras generelt","Clique numa carga do convés para ver todos os dados.":"Klikk på en last på dekket for å se alle data.","No convés":"På dekk","A bordo do Sayan Polaris":"Om bord Sayan Polaris","Fora do Sayan Polaris":"Utenfor Sayan Polaris","Alteração pendente":"Ventende endring","Editar dados":"Rediger data","Ver ficha":"Vis detaljer","Editar posição":"Rediger posisjon","Fechar":"Lukk","Movimentadas (30 dias)":"Flyttet (30 dager)","Todas":"Alle","Todos":"Alle","Local atual":"Nåværende plassering","Arraste para ajustar a largura · duplo clique restaura":"Dra for å justere bredden · dobbeltklikk tilbakestiller","Rotação finalizada":"Avsluttet rotasjon","Mostrar":"Vis","Ocultar":"Skjul","Só finalizadas":"Kun avsluttede","Importar Excel":"Importer Excel",
+"TAG":"TAG","Destino":"Destinasjon","Peso (kg)":"Vekt (kg)","Comp. (m)":"Lengde (m)","Larg. (m)":"Bredde (m)","UF Embarque":"UF lasting","UF Desembarque":"UF lossing",
+"QTD":"ANT","Size (m²)":"Areal (m²)","Recebimento":"Mottatt","Retorno":"Retur","Responsável":"Ansvarlig selskap","Movimentações":"Bevegelser","Última mov.":"Siste bev.","Observações":"Merknader",
+"Editar":"Rediger","Ver":"Vis","Adicionar carga":"Legg til last","Movimentações registradas":"Registrerte bevegelser",
+"O histórico é montado a partir da coluna de movimentações de cada carga.":"Historikken bygges fra bevegelseskolonnen til hver last.",
+"Ajustar local das cargas":"Juster lastens plassering","Concluir ajuste":"Fullfør justering","Adicionar carga ao deck":"Legg last på dekk",
+"Convés 49,2 m × 18,25 m · 1 quadrado = 0,6 m · botão direito na carga para editar":"Dekk 49,2 m × 18,25 m · 1 rute = 0,6 m · høyreklikk på lasten for å redigere",
+"Editar carga":"Rediger last","Proprietário":"Eier","Editor":"Redaktør","Visualizador":"Leser","Acesso não identificado":"Tilgang ikke identifisert","Acessos":"Tilganger",
+"Comprimento (m)":"Lengde (m)","Largura (m)":"Bredde (m)","Size (m²) — se não houver medidas":"Areal (m²) — hvis mål mangler","Data de recebimento":"Mottaksdato",
+"Previsão de retorno":"Forventet retur","Eslinga":"Stropp","A bordo do Sayan Polaris?":"Om bord på Sayan Polaris?","Sim (QTD = 1)":"Ja (ANT = 1)","Não (QTD vazio)":"Nei (ANT tom)",
+"Movimentações (uma por linha, a mais recente em cima — DD/MM - CONVÉS …)":"Bevegelser (én per linje, nyeste øverst — DD/MM - CONVÉS …)",
+"A carga entra na página na hora e vai para a planilha oficial na próxima atualização automática (07:30, 08:00 ou 08:30).":"Lasten vises på siden med en gang og går til det offisielle regnearket ved neste automatiske oppdatering (07:30, 08:00 eller 08:30).",
+"Registrar movimentação (entra no topo das movimentações)":"Registrer bevegelse (legges øverst i bevegelsene)","Data":"Dato","Tipo":"Type","Recebida no Polaris":"Mottatt på Polaris","Saiu para…":"Gikk til…",
+"Unidade":"Enhet","Registrar":"Registrer","Salvar":"Lagre","Cancelar":"Avbryt","Fechar":"Lukk","Quero editar":"Jeg vil redigere",
+"Editar posição, tamanho e texto":"Rediger posisjon, størrelse og tekst","Girar 90°":"Roter 90°","Editar dados da carga":"Rediger lastdata","Tirar do desenho":"Fjern fra tegningen",
+"Texto dentro da carga":"Tekst i lasten","Coluna (a partir da popa)":"Kolonne (fra akterenden)","Linha (a partir do bordo de cima)":"Rad (fra øvre side)",
+"Largura (quadrados)":"Bredde (ruter)","Altura (quadrados)":"Høyde (ruter)","Usar medidas da tabela":"Bruk mål fra tabellen",
+"Cargas a bordo sem posição":"Last om bord uten posisjon","Todas as cargas a bordo já estão no desenho.":"All last om bord er allerede på tegningen.",
+"Carga nova":"Ny last","Lance uma carga que acabou de chegar. Ela entra a bordo (QTD = 1) e aparece no convés.":"Registrer last som nettopp kom. Den settes om bord (ANT = 1) og vises på dekket.",
+"Recebida de":"Mottatt fra","Adicionar ao deck":"Legg på dekk","Importar":"Importer",
+"Solicitar acesso":"Be om tilgang","Gostaria de solicitar poder de":"Vil du be om","para editar cargas no site?":"-tilgang for å redigere last på siden?","Colaborador":"Bidragsyter",
+"Nome":"Navn","Email":"E-post","Motivo (opcional)":"Begrunnelse (valgfritt)","Ex.: técnico de cargas do turno B":"F.eks.: lasttekniker, skift B",
+"Você entra com a sua própria conta do Claude, então não precisa criar senha. O pedido vai para o proprietário aprovar.":"Du logger inn med din egen Claude-konto, så du trenger ikke passord. Forespørselen går til eieren for godkjenning.",
+"Sim, solicitar":"Ja, send forespørsel","Não":"Nei","Pedido de acesso enviado":"Tilgangsforespørsel sendt","Seu pedido para ser":"Forespørselen din om å bli",
+"Somente visualização":"Kun visning","Não foi possível enviar":"Kunne ikke sende",
+"Seu acesso a esta página é de visualização. Para pedir acesso de Colaborador, fale com o proprietário (Sergio) para compartilhar a página com você como":"Du har lesetilgang til denne siden. For å be om bidragsytertilgang, be eieren (Sergio) dele siden med deg som",
+"Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Din nåværende tilgang tillater ikke forespørsler her. Be eieren (Sergio) dele siden med deg som",
+"Acessos ao Deck Cargo Plan":"Tilganger til Deck Cargo Plan","Pedidos":"Forespørsler","Pré-aprovados":"Forhåndsgodkjent","Usuários":"Brukere","Nenhum pedido.":"Ingen forespørsler.","Aprovar como Editor":"Godkjenn som redaktør","Recusar":"Avslå",
+"Você. Edita tudo, publica a página e aprova acessos.":"Deg. Redigerer alt, publiserer siden og godkjenner tilganger.",
+"Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
+"As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
+"As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
+"A BORDO":"OM BORD","SAIU":"GIKK","REGISTRO":"POST","Buscar TAG, destino, responsável…":"Søk TAG, destinasjon, ansvarlig…","Buscar":"Søk","Filtrar por TAG…":"Filtrer på TAG…","Filtrar histórico":"Filtrer historikk","Filtro":"Filter",
+"Convés do Sayan Polaris com as cargas":"Sayan Polaris-dekket med last",
+"Abra esta página no Claude para ver os dados.":"Åpne denne siden i Claude for å se dataene.","Entre na sua conta para ver os dados do convés.":"Logg inn for å se dekksdataene.",
+"Nenhuma carga ainda. Use “Adicionar carga”.":"Ingen last ennå. Bruk «Legg til last».",
+"A conexão com os dados caiu. Recarregue a página.":"Datatilkoblingen falt ut. Last inn siden på nytt.","Arraste livremente: a carga encaixa nas bordas das vizinhas (Shift = sem encaixe). Canto laranja = tamanho. Setas = ajuste fino.":"Dra fritt: lasten fester seg til naboenes kanter (Shift = uten feste). Oransje hjørne = størrelse. Piltaster = finjustering.",
+"Confira os números.":"Kontroller tallene.","Informe a TAG.":"Oppgi TAG.","Leitor de Excel indisponível.":"Excel-leser utilgjengelig.","Movimentação incluída — clique em Salvar.":"Bevegelse lagt til — klikk Lagre.",
+"Não foi possível ler este arquivo.":"Kunne ikke lese denne filen.","Não foi possível salvar a decisão.":"Kunne ikke lagre beslutningen.","Nível alterado.":"Nivå endret.","O arquivo não tem a aba Sheet1.":"Filen har ikke fanen Sheet1.",
+"Pedido enviado ao proprietário.":"Forespørsel sendt til eieren.","Sem conexão com o banco desta página.":"Ingen forbindelse til sidens database.","Seu acesso é somente visualização.":"Du har bare lesetilgang.",
+"Não foi possível salvar. Tente de novo.":"Kunne ikke lagre. Prøv igjen.","O banco desta página está cheio.":"Sidens database er full.","Carga girada.":"Last rotert.","Pedido recusado.":"Forespørsel avslått.",
+"Fratelli":"Fratelli","Petrobras / ACC / TLT":"Petrobras / ACC / TLT","GC Operações":"GC Operações"
+}};
+Object.assign(DICT.en,{"Administrador": "Administrator", "Usuário": "User", "Aguardando aprovação": "Awaiting approval", "Acesso recusado": "Access denied", "Visitante · só leitura": "Visitor · read-only", "Entrar": "Sign in", "Sair": "Sign out", "Criar conta": "Create account", "Esqueci a senha": "Forgot password", "Entrar no Controle de Cargas": "Sign in to Cargo Control", "E-mail": "Email", "Senha": "Password", "Nome": "Name", "Senha (mín. 8)": "Password (min. 8)", "Função / motivo": "Role / reason", "E-mail da conta": "Account email", "Enviar link": "Send link", "Cancelar": "Cancel", "Confira o seu e-mail": "Check your email", "Criar nova senha": "Create new password", "Nova senha (mín. 8)": "New password (min. 8)", "Salvar senha": "Save password", "Acessos ao Controle de Cargas": "Access to Cargo Control", "Pedidos aguardando aprovação": "Requests awaiting approval", "Usuários": "Users", "Nenhum pedido.": "No requests.", "Aprovar como Usuário": "Approve as User", "Aprovar como Administrador": "Approve as Administrator", "Recusar": "Decline", "Sem acesso (recusado)": "No access (declined)", "Você": "You", "Você recebe um e-mail para confirmar o endereço. Depois, um administrador aprova o seu acesso de edição. Até lá, você vê tudo em modo leitura.": "You will get an email to confirm your address. Then an administrator approves your edit access. Until then you can see everything in read-only mode.", "Enviamos um link para você criar uma senha nova.": "We will email you a link to create a new password.", "Você está em modo visualização. Para editar cargas, entre com a sua conta (ou crie uma e aguarde a aprovação de um administrador).": "You are in view mode. To edit cargo, sign in (or create an account and wait for an administrator's approval).", "Seu cadastro aguarda a aprovação de um administrador. Enquanto isso, você vê tudo, mas não edita.": "Your account is waiting for an administrator's approval. Meanwhile you can see everything but not edit.", "Seu acesso de edição foi recusado por um administrador. Você continua vendo tudo.": "Your edit access was declined by an administrator. You can still see everything.", "Site ainda não conectado ao banco (config.js sem as chaves do Supabase).": "Site not yet connected to the database (config.js without Supabase keys).", "Bem-vindo!": "Welcome!", "Você saiu.": "You signed out.", "Acesso atualizado.": "Access updated.", "Senha alterada.": "Password changed.", "Link enviado. Confira o seu e-mail.": "Link sent. Check your email.", "E-mail ou senha incorretos.": "Wrong email or password.", "Confirme o seu e-mail pelo link que enviamos antes de entrar.": "Confirm your email using the link we sent before signing in."});Object.assign(DICT.no,{"Administrador": "Administrator", "Usuário": "Bruker", "Aguardando aprovação": "Venter på godkjenning", "Acesso recusado": "Tilgang avslått", "Visitante · só leitura": "Besøkende · kun lesing", "Entrar": "Logg inn", "Sair": "Logg ut", "Criar conta": "Opprett konto", "Esqueci a senha": "Glemt passord", "Entrar no Controle de Cargas": "Logg inn i lastkontrollen", "E-mail": "E-post", "Senha": "Passord", "Nome": "Navn", "Senha (mín. 8)": "Passord (min. 8)", "Função / motivo": "Rolle / grunn", "E-mail da conta": "Kontoens e-post", "Enviar link": "Send lenke", "Cancelar": "Avbryt", "Confira o seu e-mail": "Sjekk e-posten din", "Criar nova senha": "Lag nytt passord", "Nova senha (mín. 8)": "Nytt passord (min. 8)", "Salvar senha": "Lagre passord", "Acessos ao Controle de Cargas": "Tilgang til lastkontrollen", "Pedidos aguardando aprovação": "Forespørsler som venter", "Usuários": "Brukere", "Nenhum pedido.": "Ingen forespørsler.", "Aprovar como Usuário": "Godkjenn som bruker", "Aprovar como Administrador": "Godkjenn som administrator", "Recusar": "Avslå", "Sem acesso (recusado)": "Ingen tilgang (avslått)", "Você": "Deg", "Você está em modo visualização. Para editar cargas, entre com a sua conta (ou crie uma e aguarde a aprovação de um administrador).": "Du er i visningsmodus. For å redigere last, logg inn (eller opprett en konto og vent på godkjenning fra en administrator).", "Seu cadastro aguarda a aprovação de um administrador. Enquanto isso, você vê tudo, mas não edita.": "Kontoen din venter på godkjenning. Du kan se alt, men ikke redigere.", "Bem-vindo!": "Velkommen!", "Você saiu.": "Du er logget ut.", "Acesso atualizado.": "Tilgang oppdatert.", "E-mail ou senha incorretos.": "Feil e-post eller passord."});
+const W={
+ en:{carga:"Cargo",edit:"Edit cargo ",pos:"Position of ",imp:"Import ",all:"All",acc:(n)=>`Access (${n} request${n>1?"s":""})`,semPos:(n)=>`Add cargo to deck (${n} without position)`,mov:(n)=>`${n} movement${n>1?"s":""}`,
+   added:(t)=>`Cargo ${t} added.`,saved:(t)=>`Cargo ${t} saved.`,upd:(t)=>`Cargo ${t} updated.`,possaved:(t)=>`Position of ${t} saved.`,deckadd:(t)=>`${t} added to the deck.`,placed:(t)=>`${t} placed on the deck — adjust the position.`,
+   rm:(t)=>`${t} removed from the drawing (still on board in the table).`,nowed:(t)=>`${t} is now an Editor.`,imported:(n)=>`${n} cargo items imported.`,last:"Last change on the page: ",wait:" · waiting for the next Excel update",
+   semMed:(n)=>` · ${n} cargo item(s) on board without dimensions`,sync:" · Excel synced on ",ondeck:"on deck",dims:["table dimensions","table area","no dimensions in table"],since:"since ",
+   note:(d,h)=>`Note: Updated on ${d} at ${h} (BRT)`},
+ no:{carga:"Last",edit:"Rediger last ",pos:"Posisjon for ",imp:"Importer ",all:"Alle",acc:(n)=>`Tilganger (${n} forespørsel${n>1?"er":""})`,semPos:(n)=>`Legg last på dekk (${n} uten posisjon)`,mov:(n)=>`${n} bevegelse${n>1?"r":""}`,
+   added:(t)=>`Last ${t} lagt til.`,saved:(t)=>`Last ${t} lagret.`,upd:(t)=>`Last ${t} oppdatert.`,possaved:(t)=>`Posisjonen til ${t} er lagret.`,deckadd:(t)=>`${t} lagt på dekket.`,placed:(t)=>`${t} plassert på dekket — juster posisjonen.`,
+   rm:(t)=>`${t} fjernet fra tegningen (fortsatt om bord i tabellen).`,nowed:(t)=>`${t} er nå redaktør.`,imported:(n)=>`${n} laster importert.`,last:"Siste endring på siden: ",wait:" · venter på neste Excel-oppdatering",
+   semMed:(n)=>` · ${n} last(er) om bord uten mål`,sync:" · Excel synkronisert ",ondeck:"på dekk",dims:["mål fra tabellen","areal i tabellen","ingen mål i tabellen"],since:"siden ",
+   note:(d,h)=>`Merk: Oppdatert ${d} kl. ${h} (BRT)`}
+};
+const R=[
+ [/^Base: (.+)$/,(m,w)=>"Base: "+m[1].replace(/ · (\d+) carga\(s\) a bordo sem medida/,(x,n)=>w.semMed(n)).replace(" · Excel sincronizado em ",w.sync)],
+ [/^Nota: Atualizado em (\S+) às (\S+) \(BRT\)$/,(m,w)=>w.note(m[1],m[2])],
+ [/^Editar carga (.+)$/,(m,w)=>w.edit+m[1]],[/^Carga (.+) adicionada\.$/,(m,w)=>w.added(m[1])],[/^Carga (.+) salva\.$/,(m,w)=>w.saved(m[1])],[/^Carga (.+) atualizada\.$/,(m,w)=>w.upd(m[1])],
+ [/^Posição de (.+) salva\.$/,(m,w)=>w.possaved(m[1])],[/^Carga (.+)$/,(m,w)=>w.carga+" "+m[1]],[/^Posição de (.+)$/,(m,w)=>w.pos+m[1]],[/^Importar (.+)$/,(m,w)=>w.imp+m[1]],
+ [/^Todos \((\d+)\)$/,(m,w)=>`${w.all} (${m[1]})`],[/^Acessos \((\d+) pedidos?\)$/,(m,w)=>w.acc(+m[1])],
+ [/^Adicionar carga ao deck \((\d+) sem posição\)$/,(m,w)=>w.semPos(m[1])],[/^(\d+) movimentaç(?:ões|ão)$/,(m,w)=>w.mov(+m[1])],
+ [/^(.+) adicionada ao deck\.$/,(m,w)=>w.deckadd(m[1])],[/^(.+) colocada no deck — ajuste a posição\.$/,(m,w)=>w.placed(m[1])],
+ [/^(.+) saiu do desenho \(continua a bordo na tabela\)\.$/,(m,w)=>w.rm(m[1])],[/^(.+) agora é Editor\.$/,(m,w)=>w.nowed(m[1])],[/^(\d+) cargas importadas\.$/,(m,w)=>w.imported(m[1])],
+ [/^Última alteração na página: (.+)$/,(m,w)=>w.last+m[1].replace(" · aguardando a planilha (gerada às 07:45, 10:30, 13:30, 16:30 e 19:30 com o nome de quem editou)",w.wait)],
+ [/^ · aguardando a próxima atualização do Excel$/,(m,w)=>w.wait],
+ [/^= (.+) m × (.+) m no convés(.*)$/,(m,w)=>`= ${m[1]} m × ${m[2]} m ${w.ondeck}`+m[3].replace("medidas da tabela",w.dims[0]).replace("área na tabela",w.dims[1]).replace("sem medida na tabela",w.dims[2])],
+ [/^(.+) · desde (.+)$/,(m,w)=>`${m[1]} · ${w.since}${m[2]}`],[/^desde (.+)$/,(m,w)=>w.since+m[1]]
+];
+const SKIP=".dv,td:not(.empty),.ev div,.t,#f-local option:not(:first-child),.deck .cg,.deck .fixo,textarea,script,style,.mono";
+const orig=new WeakMap(),last=new WeakMap();
+let lang="pt";try{lang=localStorage.getItem("dcp-lang")||"pt"}catch(e){}
+if(!["pt","en","no"].includes(lang))lang="pt";
+function tr(s){
+  if(lang==="pt")return s;
+  const k=s.trim();if(!k)return s;const d=DICT[lang],w=W[lang];
+  let out=d[k];
+  if(out==null)for(const [re,f] of R){const m=k.match(re);if(m){out=f(m,w);break}}
+  if(out==null)return s;
+  return s.replace(k,out);
+}
+const ALL=new Set([].concat(...Object.values(DICT).map(o=>Object.values(o))));
+function doText(n){
+  const pe=n.parentElement;if(pe&&!pe.closest("button")&&pe.closest(SKIP))return;
+  const cur=n.nodeValue;
+  if(!last.has(n)||last.get(n)!==cur)orig.set(n,cur);
+  const want=tr(orig.get(n));
+  if(want!==cur)n.nodeValue=want;
+  last.set(n,want);
+}
+function doAttrs(el){
+  for(const a of ["placeholder","aria-label","title"]){
+    if(!el.hasAttribute||!el.hasAttribute(a)||el.closest(".lang"))continue;
+    const key="data-pt-"+a,cur=el.getAttribute(a);
+    if(!el.hasAttribute(key)||!ALL.has(cur))el.setAttribute(key,cur);
+    const pt=el.getAttribute(key);const want=lang==="pt"?pt:(DICT[lang][pt]||pt);
+    if(want!==cur)el.setAttribute(a,want);
+  }
+}
+function walk(root){
+  if(root.nodeType===3){doText(root);return}
+  if(root.nodeType!==1||root.closest&&root.closest(".lang"))return;
+  doAttrs(root);
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT,{acceptNode:n=>n.nodeType===1&&n.classList&&n.classList.contains("lang")?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  let n;while((n=w.nextNode())){if(n.nodeType===3)doText(n);else doAttrs(n)}
+}
+let busy=false;
+const mo=new MutationObserver(ms=>{if(busy)return;busy=true;try{for(const m of ms){if(m.type==="characterData")doText(m.target);else m.addedNodes.forEach(walk)}}finally{busy=false}});
+function setLang(l){
+  lang=l;try{localStorage.setItem("dcp-lang",l)}catch(e){}
+  document.documentElement.lang=l==="en"?"en":l==="no"?"nb":"pt-BR";
+  document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===l));
+  busy=true;try{walk(document.body)}finally{busy=false}
+}
+const FLAG_BR='<svg viewBox="0 0 20 14" aria-hidden="true"><rect width="20" height="14" fill="#009c3b"/><path d="M10 1.6 18.2 7 10 12.4 1.8 7z" fill="#ffdf00"/><circle cx="10" cy="7" r="3.1" fill="#002776"/><path d="M7 6.3c2-.5 4.2-.3 6 .7" stroke="#fff" stroke-width=".55" fill="none"/></svg>';
+const FLAG_EN='<svg viewBox="0 0 60 42" aria-hidden="true"><rect width="60" height="42" fill="#012169"/><path d="M0 0 60 42M60 0 0 42" stroke="#fff" stroke-width="8"/><path d="M0 0 60 42M60 0 0 42" stroke="#C8102E" stroke-width="3"/><path d="M30 0v42M0 21h60" stroke="#fff" stroke-width="12"/><path d="M30 0v42M0 21h60" stroke="#C8102E" stroke-width="7"/></svg>';
+const FLAG_NO='<svg viewBox="0 0 22 16" aria-hidden="true"><rect width="22" height="16" fill="#BA0C2F"/><path d="M6 0v16M0 8h22" stroke="#fff" stroke-width="4"/><path d="M6 0v16M0 8h22" stroke="#00205B" stroke-width="2"/></svg>';
+const box=document.createElement("div");box.className="lang";box.setAttribute("role","group");box.setAttribute("aria-label","Idioma / Language / Språk");
+box.innerHTML=`<button type="button" data-lang="pt" aria-pressed="false" title="Português (Brasil)">${FLAG_BR}<span>PT-BR</span></button><button type="button" data-lang="en" aria-pressed="false" title="English">${FLAG_EN}<span>EN</span></button><button type="button" data-lang="no" aria-pressed="false" title="Norsk">${FLAG_NO}<span>NO</span></button>`;
+const top=document.querySelector(".top");top.insertBefore(box,top.firstChild);
+box.addEventListener("click",e=>{const b=e.target.closest("button[data-lang]");if(b){setLang(b.dataset.lang);if(typeof paintT==="function")paintT()}});
+/* tema claro / escuro */
+const SUN='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+const MOON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+const RT=document.documentElement;const sysDark=()=>matchMedia("(prefers-color-scheme: dark)").matches;
+const curDark=()=>{const t=RT.getAttribute("data-theme");return t?t==="dark":sysDark()};
+const tb=document.createElement("button");tb.type="button";tb.className="themebtn";
+const paintT=()=>{const d=curDark();let lg="pt";try{lg=localStorage.getItem("dcp-lang")||"pt"}catch(e){}const LB={pt:["Claro","Escuro"],en:["Light","Dark"],no:["Lys","Mørk"]}[lg]||["Claro","Escuro"];tb.innerHTML=(d?SUN:MOON)+`<span>${d?LB[0]:LB[1]}</span>`;tb.title=d?"Mudar para fundo claro · Light mode · Lys modus":"Mudar para fundo escuro · Dark mode · Mørk modus";tb.setAttribute("aria-label",tb.title)};
+try{const sv=localStorage.getItem("dcp-theme");if(sv==="light"||sv==="dark")RT.setAttribute("data-theme",sv)}catch(e){}
+tb.addEventListener("click",()=>{const n=curDark()?"light":"dark";RT.setAttribute("data-theme",n);try{localStorage.setItem("dcp-theme",n)}catch(e){}paintT()});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(!RT.getAttribute("data-theme"))paintT()});
+box.insertBefore(tb,box.firstChild);paintT();
+mo.observe(document.body,{subtree:true,childList:true,characterData:true});
+setLang(lang);
+})();
+</script>
+</body>
+</html>
