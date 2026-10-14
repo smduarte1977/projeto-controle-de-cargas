@@ -300,6 +300,8 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
         <input class="search" id="q" type="search" placeholder="Buscar TAG, destino, responsável…" aria-label="Buscar">
         <label class="hint" for="f-local" style="display:flex;align-items:center;gap:6px">Local atual
           <select class="search" id="f-local" style="width:auto;min-width:150px"><option value="">Todos</option></select></label>
+        <label class="hint" for="f-resp" style="display:flex;align-items:center;gap:6px">Responsável
+          <select class="search" id="f-resp" style="width:auto;min-width:150px"><option value="">Todos</option></select></label>
         <label class="hint" for="f-rot" style="display:flex;align-items:center;gap:6px">Rotação finalizada
           <select class="search" id="f-rot" style="width:auto;min-width:130px"><option value="mostrar">Mostrar</option><option value="ocultar">Ocultar</option><option value="so">Só finalizadas</option></select></label>
         <div class="hint msel" id="f-dest" style="display:flex;align-items:center;gap:6px"><span>Destino</span>
@@ -477,6 +479,8 @@ function renderRows(){
   else if(state.rot==="so")list=list.filter(([,c])=>rotFim(c));
   fillLocal(list);
   if(state.local)list=list.filter(([,c])=>locKey(c.local)===state.local);
+  fillResp(list);
+  if(state.resp)list=list.filter(([,c])=>respKey(c.responsavel)===state.resp);
   fillDest(list);
   if(state.dest.size)list=list.filter(([,c])=>state.dest.has(destKey(c.destino)));
   const q=norm(state.q);if(q)list=list.filter(([,c])=>norm([c.tag,c.eslinga,c.destino,c.responsavel,c.local,c.obs,c.ufEmb].join(" ")).includes(q));
@@ -506,6 +510,30 @@ function fillLocal(list){
   sel.innerHTML=`<option value="">Todos (${list.length})</option>`+opts.map(([k,n])=>`<option value="${esc(k)}" ${k===state.local?"selected":""}>${esc(k)} (${n})</option>`).join("");
 }
 $("#f-local").addEventListener("change",e=>{state.local=e.target.value;renderRows()});
+/* filtro por responsável (ordem alfabética) */
+const respKey=v=>String(v||"").replace(/\s+/g," ").trim().toUpperCase()||"(SEM RESPONSÁVEL)";
+function fillResp(list){
+  const cnt=new Map();for(const [,c] of list){const k=respKey(c.responsavel);cnt.set(k,(cnt.get(k)||0)+1)}
+  if(state.resp&&!cnt.has(state.resp))cnt.set(state.resp,0);
+  const sel=$("#f-resp");const opts=[...cnt].sort((a,b)=>a[0].localeCompare(b[0],"pt-BR"));
+  sel.innerHTML=`<option value="">Todos (${list.length})</option>`+opts.map(([k,n])=>`<option value="${esc(k)}" ${k===state.resp?"selected":""}>${esc(k)} (${n})</option>`).join("");
+}
+$("#f-resp").addEventListener("change",e=>{state.resp=e.target.value;renderRows()});
+/* listas de sugestão (lista suspensa que também aceita digitar): todos os locais/unidades e responsáveis que já apareceram, em ordem alfabética */
+const LUGARES_FIXOS=["SAYAN POLARIS","BASE MACAÉ","PACU","BMAC","P-52","P-53","P-54","P-62","UMVV"];
+function lugaresHist(){const S=new Set(LUGARES_FIXOS);const add=v=>{v=String(v||"").replace(/\s+/g," ").trim().toUpperCase();
+    v=v.replace(/^P-?(\d{2})$/,"P-$1").replace(/^(PACU|BMAC)[\d\/ .-]+$/,"$1");
+    if(v&&v.length<40&&!/^\(|ROTA[CÇ][AÃ]O|A CONFIRMAR|CANCELAD|CONFIRMAD|AGUARDANDO|^TLT\b|^B\/L$|BACK ?LOAD|^N\/?A$|^\d/.test(v))S.add(v)};
+  for(const c of state.cargas.values()){add(c.local);add(c.origemUnidade);add(c.destino);if(c.prox){add(c.prox.unidade);add(c.prox.origem)}
+    for(const l of String(c.historico||"").split("\n")){let m=l.match(/CONV[EÉ]S\s+([^()\n]+?)\s*(?:\(|$)/i);if(m&&!/POLARIS/i.test(m[1]))add(m[1]);
+      m=l.match(/\((?:RECEBIDA|RETORNOU) DA\s+([^)]+)\)/i);if(m)add(m[1]);m=l.match(/DESEMBARQUE\s+(\S+)/i);if(m)add(m[1])}}
+  return [...S].sort((a,b)=>a.localeCompare(b,"pt-BR"))}
+function respsHist(){const S=new Set();for(const c of state.cargas.values()){const v=String(c.responsavel||"").replace(/\s+/g," ").trim().toUpperCase();if(v)S.add(v)}return [...S].sort((a,b)=>a.localeCompare(b,"pt-BR"))}
+function atualizarListas(){
+  const mk=(id,arr)=>{let d=document.getElementById(id);if(!d){d=document.createElement("datalist");d.id=id;document.body.appendChild(d)}
+    const h=arr.map(v=>`<option value="${esc(v)}"></option>`).join("");if(d.dataset.h!==h){d.innerHTML=h;d.dataset.h=h}};
+  mk("dl-lugares",lugaresHist());mk("dl-resp",respsHist());
+}
 
 /* ---------- filtro de destino (múltipla escolha) ---------- */
 const destKey=v=>String(v||"").replace(/\s+/g," ").trim().toUpperCase()||"(SEM DESTINO)";
@@ -621,7 +649,7 @@ const RCONT={bordo:"Cargas a bordo do Sayan Polaris",r7:"Movimentadas nos últim
 function linhasRelatorio(cont){
   if(cont==="tabela"){
     const FN={prox:"Próximas movimentações",bordo:"A bordo",recentes:"Movimentadas (7 dias)",r14:"Movimentadas (14 dias)",r30:"Movimentadas (30 dias)",todas:"Todas"};
-    const desc=`Como exibido na tabela: ${FN[state.filter]||""}${state.local?" · Local: "+state.local:""}${state.dest.size?" · Destino: "+[...state.dest].join(", "):""}${state.q?" · Busca: "+state.q:""}`;
+    const desc=`Como exibido na tabela: ${FN[state.filter]||""}${state.local?" · Local: "+state.local:""}${state.resp?" · Responsável: "+state.resp:""}${state.dest.size?" · Destino: "+[...state.dest].join(", "):""}${state.q?" · Busca: "+state.q:""}`;
     return{rows:state.lastList?state.lastList.slice():[...onboard()].sort(cmpRecente),desc};
   }
   const dias={r7:7,r14:14,r30:30}[cont];
@@ -848,7 +876,8 @@ function renderHist(){
 
 /* ---------- formulários ---------- */
 function fieldsHtml(c,prefix){
-  return FIELDS.map(([k,l,t,req])=>`<label>${l}<input id="${prefix}-${k}" name="${k}" type="${t==="number"?"text":t}" ${t==="number"?'inputmode="decimal"':""} ${req?"required":""} value="${esc(t==="number"&&c[k]!=null?String(c[k]).replace(".",","):c[k]??"")}"></label>`).join("")+
+  const LST={local:"dl-lugares",destino:"dl-lugares",responsavel:"dl-resp"};
+  return FIELDS.map(([k,l,t,req])=>`<label>${l}<input id="${prefix}-${k}" name="${k}" ${LST[k]?`list="${LST[k]}" autocomplete="off"`:""} type="${t==="number"?"text":t}" ${t==="number"?'inputmode="decimal"':""} ${req?"required":""} value="${esc(t==="number"&&c[k]!=null?String(c[k]).replace(".",","):c[k]??"")}"></label>`).join("")+
   `<label>A bordo do Sayan Polaris?<select id="${prefix}-qtd" name="qtd"><option value="1" ${c.qtd===1?"selected":""}>Sim (QTD = 1)</option><option value="" ${c.qtd!==1?"selected":""}>Não (QTD vazio)</option></select></label>
    <label class="wide">Movimentações (uma por linha, a mais recente em cima — DD/MM - CONVÉS …)<textarea id="${prefix}-historico" name="historico">${esc(c.historico||"")}</textarea></label>`;
 }
@@ -865,7 +894,7 @@ function readForm(form){
 function buildAdd(){
   const f=$("#f-add");
   f.innerHTML=fieldsHtml({qtd:1,dataReceb:hojeSP(),destino:"A CONFIRMAR",obs:"A CONFIRMAR"},"a")+
-   `<label>Origem da carga (unidade de onde veio)<input id="a-origem" name="origemUnidade" required list="units-or" placeholder="Ex.: P-62, PACU" autocomplete="off"></label>${UNITS_OR}`+
+   `<label>Origem da carga (unidade de onde veio)<input id="a-origem" name="origemUnidade" required list="dl-lugares" placeholder="Ex.: P-62, PACU" autocomplete="off"></label>${UNITS_OR}`+
    `<div class="actions"><button class="btn primary" type="submit">Adicionar carga</button><span class="hint">A carga entra na página na hora e vai para a planilha oficial na próxima atualização automática (07:30, 08:00 ou 08:30).</span></div>`;
 }
 $("#f-add").addEventListener("submit",async e=>{
@@ -891,7 +920,7 @@ function editCargo(id){
     <legend class="hint">Registrar movimentação (entra no topo das movimentações)</legend>
     <label>Data<input id="mv-d" type="date" value="${hojeSP()}"></label>
     <label>Tipo<select id="mv-k"><option value="on">Recebida no Polaris</option><option value="off">Saiu para…</option></select></label>
-    <label><span id="mv-ul">Origem (de onde veio)</span><input id="mv-u" type="text" value="" list="units" placeholder="Ex.: P-62" autocomplete="off"></label>
+    <label><span id="mv-ul">Origem (de onde veio)</span><input id="mv-u" type="text" value="" list="dl-lugares" placeholder="Ex.: P-62" autocomplete="off"></label>
     <div style="display:flex;align-items:end"><button class="btn" type="button" id="mv-add">Registrar</button></div>
    </fieldset>
    <datalist id="units"><option>P-62</option><option>P-54</option><option>P-52</option><option>UMVV</option><option>PACU</option><option>BMAC</option></datalist>
@@ -972,9 +1001,9 @@ $("#sel-prog").onclick=()=>{
   const fora=ids.filter(id=>state.cargas.get(id).qtd!==1);const locs=[...new Set(fora.map(id=>String(state.cargas.get(id).local||"").trim().toUpperCase()).filter(l=>l&&!/POLARIS/.test(l)))];
   openModal("Programar próxima movimentação",`<form class="form" id="f-px" style="padding-top:12px">
     <p class="hint" style="grid-column:1/-1;margin:0">${ids.length} carga(s): <span class="dv">${esc(tags.join(", "))}</span></p>
-    <label>Unidade (destino)<input id="px-u" required list="units-px" placeholder="Ex.: P-62" autocomplete="off"></label>
+    <label>Unidade (destino)<input id="px-u" required list="dl-lugares" placeholder="Ex.: P-62" autocomplete="off"></label>
     <label>Data da próxima movimentação<input id="px-d" type="date" required value="${amanhaSP()}"></label>
-    ${fora.length?`<label>Origem da${fora.length>1?"s":""} carga${fora.length>1?"s":""} (embarque no Polaris)<input id="px-o" required list="units-px" value="${esc(locs.length===1?locs[0]:"")}" placeholder="Unidade de onde vem${fora.length>1?"m":""}" autocomplete="off"></label>
+    ${fora.length?`<label>Origem da${fora.length>1?"s":""} carga${fora.length>1?"s":""} (embarque no Polaris)<input id="px-o" required list="dl-lugares" value="${esc(locs.length===1?locs[0]:"")}" placeholder="Unidade de onde vem${fora.length>1?"m":""}" autocomplete="off"></label>
     <p class="hint" style="grid-column:1/-1;margin:0">${fora.length} carga(s) está(ão) fora do Polaris e vão embarcar: informe a origem.</p>`:""}
     <p class="hint" style="grid-column:1/-1;margin:0">O destino de todas as cargas selecionadas passa a ser a unidade escolhida. Elas ficam marcadas como próxima movimentação até você confirmar ou cancelar em cada linha.</p>
     ${UNITS_DL}
@@ -991,7 +1020,7 @@ function confirmarPx(id){
   openModal("Confirmar movimentação",`<form class="form" id="f-pxok" style="padding-top:12px">
     <p style="grid-column:1/-1;margin:0"><b class="dv">${esc(c.tag)}</b> — ${bordo?`sai do Sayan Polaris para <b class="dv">${esc(px.unidade)}</b>`:`chega ao Sayan Polaris vindo de <b class="dv">${esc(c.local||px.unidade)}</b>`}.</p>
     <label>Data realizada<input id="pk-d" type="date" required value="${esc(px.data>hojeSP()?hojeSP():px.data)}"></label>
-    <label>${bordo?"Destino (para onde foi)":"Origem (recebida da unidade)"}<input id="pk-u" required list="units-px" value="${esc(bordo?px.unidade:(px.origem||(c.local&&!/POLARIS/i.test(c.local)?c.local:"")))}"></label>
+    <label>${bordo?"Destino (para onde foi)":"Origem (recebida da unidade)"}<input id="pk-u" required list="dl-lugares" value="${esc(bordo?px.unidade:(px.origem||(c.local&&!/POLARIS/i.test(c.local)?c.local:"")))}"></label>
     <p class="hint" style="grid-column:1/-1;margin:0">Ao confirmar, a movimentação entra no topo do histórico, a última movimentação é atualizada e ${bordo?"a carga sai do convés (QTD vazio).":"a carga passa a contar a bordo (QTD 1) — depois posicione no convés."}</p>
     ${UNITS_DL}
     <div class="actions"><button class="btn primary" type="submit">Confirmar movimentação</button><button class="btn" type="button" id="pk-no">Fechar</button></div></form>`);
@@ -1206,9 +1235,9 @@ $("#b-adddeck").onclick=()=>{if(!gate())return;
    ${sem.length?`<div><h3 style="font-size:18px">Cargas a bordo sem posição</h3><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${sem.map(([id,c])=>`<button class="btn" data-place="${esc(id)}">${esc(c.tag)}</button>`).join("")}</div></div>`:'<p class="hint">Todas as cargas a bordo já estão no desenho.</p>'}
    <div><h3 style="font-size:18px">Carga nova</h3><p class="hint">Lance uma carga que acabou de chegar. Ela entra a bordo (QTD = 1) e aparece no convés.</p>
    <form class="form" id="f-new" style="padding:8px 0 0">
-    <label>TAG<input id="n-tag" required></label><label>Responsável<input id="n-resp" list="resps"></label>
+    <label>TAG<input id="n-tag" required></label><label>Responsável<input id="n-resp" list="dl-resp"></label>
     <label>Comprimento (m)<input id="n-c" inputmode="decimal"></label><label>Largura (m)<input id="n-l" inputmode="decimal"></label>
-    <label>Data<input id="n-d" type="date" value="${hojeSP()}"></label><label>Origem da carga (recebida de)<input id="n-u" required value="" list="units2" placeholder="Ex.: P-62, PACU" autocomplete="off"></label>
+    <label>Data<input id="n-d" type="date" value="${hojeSP()}"></label><label>Origem da carga (recebida de)<input id="n-u" required value="" list="dl-lugares" placeholder="Ex.: P-62, PACU" autocomplete="off"></label>
     <datalist id="resps"><option>TLT P62</option><option>MOTA</option><option>MANSERV</option><option>FRATELLI</option><option>GC OPERACOES</option><option>UTC</option></datalist>
     <datalist id="units2"><option>P-62</option><option>P-54</option><option>P-52</option><option>UMVV</option><option>PACU</option></datalist>
     <div class="actions"><button class="btn primary" type="submit">Adicionar ao deck</button></div></form></div></div>`);
@@ -1236,7 +1265,7 @@ function setGrp(g){state.grp=(g==="pb"||g==="nav")?g:null;
 document.querySelectorAll("[data-grp]").forEach(b=>b.onclick=()=>{const g=b.dataset.grp;
   if(b.getAttribute("aria-pressed")==="true"){setGrp(null);renderRows();return}
   state.filter="bordo";document.querySelectorAll("[data-f]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.f==="bordo"));
-  state.q="";const qi=$("#q");if(qi)qi.value="";state.local="";state.dest.clear();saveDest();if(state.rot==="so"){state.rot="mostrar";$("#f-rot").value="mostrar";try{localStorage.setItem("dcp-rot","mostrar")}catch(e){}}
+  state.q="";const qi=$("#q");if(qi)qi.value="";state.local="";state.resp="";state.dest.clear();saveDest();if(state.rot==="so"){state.rot="mostrar";$("#f-rot").value="mostrar";try{localStorage.setItem("dcp-rot","mostrar")}catch(e){}}
   setGrp(g);if(state.tab!=="controle")setTab("controle");renderRows();
   const t=document.getElementById("ctl");if(t)t.scrollIntoView({behavior:"smooth",block:"start"})});
 $("#grp-x").onclick=()=>{setGrp(null);renderRows()};
@@ -1246,7 +1275,7 @@ let qt;$("#q").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{
 try{const tg=new URLSearchParams(location.search).get("tag");if(tg){const ch=document.querySelector('.chip[data-f="todas"]');if(ch)ch.click();const qi=$("#q");qi.value=tg;state.q=tg;renderRows()}}catch(e){}
 $("#qh").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{state.qh=e.target.value;renderHist()},150)});
 
-function render(){renderKpis();if(state.tab==="controle")renderRows();else if(state.tab==="historico")renderHist();else drawDeck()}
+function render(){renderKpis();atualizarListas();if(state.tab==="controle")renderRows();else if(state.tab==="historico")renderHist();else drawDeck()}
 
 /* =====================================================================
    Projeto de Controle de Cargas — login próprio (Supabase), papéis e dados
@@ -1604,7 +1633,7 @@ const R=[
  [/^= (.+) m × (.+) m no convés(.*)$/,(m,w)=>`= ${m[1]} m × ${m[2]} m ${w.ondeck}`+m[3].replace("medidas da tabela",w.dims[0]).replace("área na tabela",w.dims[1]).replace("sem medida na tabela",w.dims[2])],
  [/^(.+) · desde (.+)$/,(m,w)=>`${m[1]} · ${w.since}${m[2]}`],[/^desde (.+)$/,(m,w)=>w.since+m[1]]
 ];
-const SKIP=".dv,td:not(.empty),.ev div,.t,#f-local option:not(:first-child),.deck .cg,.deck .fixo,textarea,script,style,.mono";
+const SKIP=".dv,td:not(.empty),.ev div,.t,#f-local option:not(:first-child),#f-resp option:not(:first-child),.deck .cg,.deck .fixo,textarea,script,style,.mono";
 const orig=new WeakMap(),last=new WeakMap();
 let lang="pt";try{lang=localStorage.getItem("dcp-lang")||"pt"}catch(e){}
 if(!["pt","en","no"].includes(lang))lang="pt";
