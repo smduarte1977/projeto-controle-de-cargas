@@ -530,7 +530,11 @@ function renderList(){
 
 /* ================= detalhe do manifesto (espelha o formulário real) ================= */
 /* fixa as colunas até "PO SAP" (seleção, #, PR Máximo, PO SAP) ao deslizar a tabela para o lado */
-function fixarColunas(){const tb=$("#itab table");if(!tb)return;const ths=[...tb.querySelectorAll("thead th")];const lim=ths.findIndex(th=>th.textContent.trim()==="PO SAP"||th.dataset.k==="po");
+/* barra de busca das linhas: o primeiro campo (PR Máximo) começa exatamente onde começa a coluna "#" (logo depois do checkbox) */
+function alinharBusca(){const ib=$("#ibusca"),tb=$("#itab table");if(!ib||!tb)return;const th=[...tb.querySelectorAll("thead th")].find(x=>x.textContent.trim()==="#");
+  if(!th)return;ib.style.marginLeft="0px";const sx=$("#itab").scrollLeft;$("#itab").scrollLeft=0;
+  const d=th.getBoundingClientRect().left-ib.getBoundingClientRect().left;$("#itab").scrollLeft=sx;ib.style.marginLeft=Math.max(0,Math.round(d))+"px"}
+function fixarColunas(){alinharBusca();const tb=$("#itab table");if(!tb)return;const ths=[...tb.querySelectorAll("thead th")];const lim=ths.findIndex(th=>th.textContent.trim()==="PO SAP"||th.dataset.k==="po");
   if(lim<0)return;const lefts=[];let x=0;for(let c=0;c<=lim;c++){lefts.push(x);x+=ths[c].getBoundingClientRect().width}
   const set=(cell,c)=>{cell.classList.add("stk");cell.classList.toggle("stk-last",c===lim);cell.style.left=lefts[c]+"px"};
   ths.slice(0,lim+1).forEach((th,c)=>{th.dataset.k=c===lim?"po":th.dataset.k||"";set(th,c)});
