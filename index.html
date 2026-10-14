@@ -157,8 +157,9 @@ tr.frat td{background:var(--orange);color:#1b1300}
 tr.amar td{background:var(--yellow)}
 tr.gc td{background:var(--gc);color:#1b1a00}
 tr.fora td.tag{color:var(--signal)}
-td.venc-x{color:#c00000!important;font-weight:700}
-td.venc-s{color:var(--warn)!important;font-weight:700}
+td.venc-x,tbody tr:hover td.venc-x{background:#c00000!important;color:#fff!important}
+td.venc-a,tbody tr:hover td.venc-a{background:#ffe600!important;color:#c00000!important}
+tr.gc td.venc-a,tr.amar td.venc-a,tr.gc:hover td.venc-a,tr.amar:hover td.venc-a{background:#ff8c00!important;color:#c00000!important}
 /* rotação finalizada: todas as colunas na cor do TAG */
 tr.rotf td,tr.rotf td .pxb{color:var(--signal)}
 tr.pend td.tag::after{content:"●";color:var(--warn);margin-left:6px;font-size:10px;vertical-align:middle}
@@ -404,10 +405,14 @@ const onboard=()=>[...state.cargas.entries()].filter(([,c])=>c.qtd===1);
 function lastDate(){let m="";for(const c of state.cargas.values())if((c.ultimaMov||"")>m)m=c.ultimaMov;return m}
 
 /* ---------- gravação ---------- */
-/* vencimento: vencido = vermelho; vence em até 30 dias = alerta */
-function vencTd(v){if(!v)return'<td class="mono"></td>';const h=hojeSP(),d=String(v).slice(0,10);
-  const lim=new Date(Date.parse(h+"T12:00:00Z")+30*864e5).toISOString().slice(0,10);
-  const cl=d<h?"venc-x":(d<=lim?"venc-s":"");return `<td class="mono ${cl}" title="${d<h?"Vencido":(cl?"Vence em até 30 dias":"")}">${fmtD(d)}</td>`}
+/* vencimento da eslinga: "x" = vencida (fundo vermelho, fonte branca); "a" = vence em até 3 meses (fonte vermelha, fundo amarelo —
+   laranja nas linhas que já são amarelas, como GC). Vale para as células Eslinga e Vencimento. */
+function vencStatus(v){if(!v)return"";const h=hojeSP(),d=String(v).slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return"";if(d<h)return"x";
+  const t=new Date(Date.UTC(+h.slice(0,4),+h.slice(5,7)-1+3,+h.slice(8,10))).toISOString().slice(0,10);return d<=t?"a":""}
+const VENC_TIT={x:"Eslinga vencida",a:"Eslinga vence em até 3 meses"};
+function eslTd(c){const st=vencStatus(c.vencimento);return `<td class="${st?"venc-"+st:""}"${st?` title="${VENC_TIT[st]}"`:""}>${esc(c.eslinga)}</td>`}
+function vencTd(v){if(!v)return'<td class="mono"></td>';const st=vencStatus(v);
+  return `<td class="mono${st?" venc-"+st:""}"${st?` title="${VENC_TIT[st]}"`:""}>${fmtD(String(v).slice(0,10))}</td>`}
 /* B-PORT / B-PORT OFF passam a ser registrados como PACU */
 const RX_BPORT=/\bB[\s-]?PORT(?:\s+OFF)?/gi;
 /* todas as entradas de texto ficam em CAIXA ALTA, não importa como o usuário digitou */
@@ -483,7 +488,7 @@ function renderRows(){
     const cls=[isFrat(c)?"frat":isGC(c)?"gc":(c.ultimaMov&&c.ultimaMov===L?"last":(c.destaque==="amarelo"?"amar":"")),c.qtd===1?"":"fora",rotFim(c)?"rotf":"",c.sync==="pendente"?"pend":"",px?"proxr":""].join(" ");
     return `<tr class="${cls}" data-id="${esc(id)}">
       <td class="selc"><input type="checkbox" class="rsel" data-id="${esc(id)}" ${state.selRows.has(id)?"checked":""} aria-label="Selecionar ${esc(c.tag)}"></td>
-      <td class="tag">${esc(c.tag)}${px?`<span class="pxb">${c.qtd===1?"&rarr; ":"&larr; "}${esc(px.unidade||"")} · ${fmtD(px.data).slice(0,5)}</span>`:""}</td><td>${esc(c.eslinga)}</td>${vencTd(c.vencimento)}<td>${esc(c.destino)}</td><td class="num">${typeof c.peso==="number"?nf(c.peso):esc(c.peso)}</td>
+      <td class="tag">${esc(c.tag)}${px?`<span class="pxb">${c.qtd===1?"&rarr; ":"&larr; "}${esc(px.unidade||"")} · ${fmtD(px.data).slice(0,5)}</span>`:""}</td>${eslTd(c)}${vencTd(c.vencimento)}<td>${esc(c.destino)}</td><td class="num">${typeof c.peso==="number"?nf(c.peso):esc(c.peso)}</td>
       <td class="num">${nf(c.comp)}</td><td class="num">${nf(c.larg)}</td><td class="mono">${esc(c.ufEmb)}</td><td class="mono">${esc(c.ufDes)}</td>
       <td class="num">${c.qtd===1?'<span class="qtd1">1</span>':""}</td><td class="num">${s==null?"":nf(s)}</td><td class="num">${nf(m2)}</td>
       <td class="mono">${fmtD(c.dataReceb)}</td><td>${esc(c.local)}</td><td>${esc(c.retorno)}</td><td>${esc(c.responsavel)}</td>
@@ -668,7 +673,9 @@ async function gerarRelatorio(opts){
     if(y-h<M+14){newPage();head()}
     const fill=corLinha(c,L);
     if(fill)page.drawRectangle({x:M,y:y-h,width:PW-2*M,height:h,color:hex(fill)});
-    let x=M;cells.forEach((ls,i)=>{ls.forEach((ln,j)=>T(ln,x+PAD,y-PAD-FS+.4-j*LH,{size:FS,bold:keep[i]===0,color:rotFim(c)?hex("#c2410c"):c.qtd===1?INK:hex("#7a1f1f")}));
+    const vs=vencStatus(c.vencimento),vfill=vs==="x"?"#C00000":vs==="a"?(fill==="#FFFF00"||fill==="#FFF27A"?"#FF8C00":"#FFE600"):null;
+    let x=M;cells.forEach((ls,i)=>{const ve=vfill&&(keep[i]===1||keep[i]===2);if(ve)page.drawRectangle({x,y:y-h,width:COLS[i][1],height:h,color:hex(vfill)});
+      ls.forEach((ln,j)=>T(ln,x+PAD,y-PAD-FS+.4-j*LH,{size:FS,bold:keep[i]===0,color:ve?(vs==="x"?rgb(1,1,1):hex("#C00000")):rotFim(c)?hex("#c2410c"):c.qtd===1?INK:hex("#7a1f1f")}));
       page.drawLine({start:{x:x+COLS[i][1],y},end:{x:x+COLS[i][1],y:y-h},thickness:.3,color:LINE});x+=COLS[i][1]});
     page.drawLine({start:{x:M,y:y-h},end:{x:PW-M,y:y-h},thickness:.3,color:LINE});page.drawLine({start:{x:M,y},end:{x:M,y:y-h},thickness:.3,color:LINE});
     y-=h;
@@ -736,11 +743,13 @@ async function gerarPlanilha(opts){
     const {s,mm}=valsRel(c);
     const vals=[c.tag,c.eslinga,dt(c.vencimento),c.destino,num(c.peso),num(c.comp),num(c.larg),c.ufEmb,c.ufDes,c.qtd===1?1:null,s,mm,dt(c.dataReceb),c.local,c.retorno,c.responsavel,c.historico,dt(c.ultimaMov),c.obs];
     const r=ws.getRow(8+k);const fill=corLinha(c,L);const cor=rotFim(c)?"FFC2410C":c.qtd===1?"FF14212E":"FF7A1F1F";
+    const vs=vencStatus(c.vencimento),vfill=vs==="x"?"FFC00000":vs==="a"?(fill==="#FFFF00"||fill==="#FFF27A"?"FFFF8C00":"FFFFE600"):null;
     let lines=1;
     keep.forEach((i,j)=>{const x=r.getCell(j+1);let v=vals[i];if(v===undefined||v==="")v=null;x.value=v;
       if(v instanceof Date)x.numFmt="dd/mm/yyyy";else if(typeof v==="number"&&(i===5||i===6))x.numFmt="0.00";else if(typeof v==="number"&&i===4)x.numFmt="#,##0";
       x.font={size:9,bold:i===0,color:{argb:cor}};x.alignment={vertical:"top",wrapText:true,horizontal:typeof v==="number"||v instanceof Date?"center":"left"};x.border=BRD;
       if(fill)x.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF"+fill.slice(1).toUpperCase()}};
+      if(vfill&&(i===1||i===2)){x.fill={type:"pattern",pattern:"solid",fgColor:{argb:vfill}};x.font={size:9,color:{argb:vs==="x"?"FFFFFFFF":"FFC00000"}}}
       if(typeof v==="string"){const w=RCOL_XLW[i]*1.1;lines=Math.max(lines,v.split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/w)),0))}});
     r.height=Math.min(409,Math.max(15,lines*12.5));
   });
