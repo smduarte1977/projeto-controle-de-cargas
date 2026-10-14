@@ -116,6 +116,7 @@ td.acts{white-space:nowrap}td.acts .rowbtn+.rowbtn{margin-left:4px}
 .danger .hint{margin-right:auto}
 .btn.dangerbtn{border-color:#b03a2e;color:#b03a2e}
 .btn.dangerbtn.solid{background:#b03a2e;color:#fff}
+.rh{margin:14px 0 6px;font-size:13px;display:flex;align-items:center;gap:10px;justify-content:space-between}.rcbt{display:flex;gap:6px}.rcols{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px 10px}.rcols label{display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer;padding:3px 0}.rcols input,.rori input{margin:0;accent-color:var(--accent,#1d6fb8)}.rori{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-top:10px;font-size:14px}.rori label{display:flex;gap:6px;align-items:center;cursor:pointer}
 .ropts{display:grid;gap:8px;margin-top:10px}.ropts label{display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer;padding:8px 10px;border:1px solid var(--line);border-radius:6px}.ropts input{margin:0;accent-color:var(--accent,#1d6fb8)}
 .updnote{align-self:center;margin-left:8px;font-family:var(--f-mono);font-size:12px;color:var(--muted);padding:4px 10px;border:1px dashed var(--line);border-radius:4px;background:var(--panel)}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
@@ -565,7 +566,7 @@ $("#f-rot").addEventListener("change",e=>{state.rot=e.target.value;try{localStor
   });
 })();
 
-/* ---------- relatório em PDF (paisagem A4): resumo, tabela e imagem do convés ---------- */
+/* ---------- relatório em PDF (A4 paisagem ou retrato) e planilha Excel: resumo, tabela e imagem do convés (opcional) ---------- */
 const PDFLIB_URL="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
 function loadScript(u){return new Promise((res,rej)=>{if(window.PDFLib)return res();const s=document.createElement("script");s.src=u;s.onload=res;s.onerror=()=>rej(new Error("script"));document.head.appendChild(s)})}
 async function deckPng(){
@@ -594,17 +595,39 @@ function wrapPdf(text,font,size,maxW){
     out.push(line)}
   return out.length?out:[""];
 }
-async function gerarRelatorio(modo){
+/* colunas do relatório (mesma ordem da tabela da tela) */
+const RCOLS=[["TAG",62],["Eslinga",44],["Vencimento",40],["Destino",46],["Peso (kg)",44],["Comp. (m)",26],["Larg. (m)",26],["UF Embarque",44],["UF Desemb.",44],["QTD",20],["Size (m²)",24],["M²",22],["Receb.",40],["Local atual",50],["Retorno",40],["Responsável",50],["Movimentações",132],["Última mov.",40],["Observações",84]];
+const RCOL_XL=["TAG","Eslinga","Vencimento","Destino","Peso (kg)","Comp. (m)","Larg. (m)","UF Embarque","UF Desembarque","QTD","Size (m²)","M²","Recebimento","Local atual","Retorno","Responsável","Movimentações","Última mov.","Observações"];
+const RCOL_XLW=[16,14,12,14,11,9,9,13,13,6,8,6,12,16,12,16,46,12,30];
+function colunasNaTela(){const ths=[...document.querySelectorAll("#ctl thead th")].slice(1,1+RCOLS.length);const k=ths.map((t,i)=>getComputedStyle(t).display!=="none"?i:-1).filter(i=>i>=0);return k.length?k:RCOLS.map((_,i)=>i)}
+const RCONT={bordo:"Cargas a bordo do Sayan Polaris",r7:"Movimentadas nos últimos 7 dias",r14:"Movimentadas nos últimos 14 dias",r30:"Movimentadas nos últimos 30 dias"};
+/* linhas e descrição do conteúdo escolhido */
+function linhasRelatorio(cont){
+  if(cont==="tabela"){
+    const FN={prox:"Próximas movimentações",bordo:"A bordo",recentes:"Movimentadas (7 dias)",r14:"Movimentadas (14 dias)",r30:"Movimentadas (30 dias)",todas:"Todas"};
+    const desc=`Como exibido na tabela: ${FN[state.filter]||""}${state.local?" · Local: "+state.local:""}${state.dest.size?" · Destino: "+[...state.dest].join(", "):""}${state.q?" · Busca: "+state.q:""}`;
+    return{rows:state.lastList?state.lastList.slice():[...onboard()].sort(cmpRecente),desc};
+  }
+  const dias={r7:7,r14:14,r30:30}[cont];
+  if(dias){const lim=hojeSP(Date.now()-dias*864e5);return{rows:[...state.cargas.entries()].filter(([,c])=>(c.ultimaMov||"")>=lim).sort(cmpRecente),desc:RCONT[cont]+" (desde "+fmtD(lim)+")"}}
+  return{rows:[...onboard()].sort(cmpRecente),desc:RCONT.bordo};
+}
+const valsRel=c=>{const s=sizeOf(c),mm=c.qtd===1?(s||0):0;return{s,mm}};
+const corLinha=(c,L)=>isFrat(c)?"#FFC000":isGC(c)?"#FFFF00":(c.ultimaMov&&c.ultimaMov===L?"#DDD9C4":(c.destaque==="amarelo"?"#FFF27A":null));
+const nomeArq=(pref,ext)=>{const pp=new Intl.DateTimeFormat("pt-BR",{timeZone:TZ,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date()).reduce((o,x)=>(o[x.type]=x.value,o),{});return`${pref} - ${pp.day}.${pp.month}.${pp.year} ${pp.hour}h${pp.minute}.${ext}`};
+function resumoKpis(){const on=onboard(),nav=on.filter(([,c])=>isGC(c)||isFrat(c)).length;const pbm2=on.filter(([,c])=>!(isGC(c)||isFrat(c))).reduce((a,[,c])=>a+(sizeOf(c)||0),0);
+  return{pb:on.length-nav,nav,tot:on.length,pbm2,pct:pbm2/AREA_PB*100,L:lastDate()}}
+
+/* opts: {cont, keep:[índices de RCOLS], deck:true|false, orient:"paisagem"|"retrato"} */
+async function gerarRelatorio(opts){
   await loadScript(PDFLIB_URL);const {PDFDocument,StandardFonts,rgb}=window.PDFLib;
   const hex=h=>{h=String(h||"#ffffff").replace("#","");return rgb(parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255)};
   const doc=await PDFDocument.create();doc.setTitle("Sayan Polaris Deck Cargo Plan - Relatório");
   const F=await doc.embedFont(StandardFonts.Helvetica),FB=await doc.embedFont(StandardFonts.HelveticaBold);
-  const PW=841.89,PH=595.28,M=24,INK=hex("#14212e"),MUT=hex("#5b6b7a"),NAVY=hex("#14304a"),LINE=hex("#c9d2db");
-  const on=onboard(),nav=on.filter(([,c])=>isGC(c)||isFrat(c)).length,m2=on.reduce((a,[,c])=>a+(sizeOf(c)||0),0);
-  const emit=fmtDT(Date.now()),L=lastDate();
-  let rows=modo==="tabela"&&state.lastList?state.lastList:[...on].sort(cmpRecente);
-  const FN={prox:"Próximas movimentações",bordo:"A bordo",recentes:"Movimentadas (7 dias)",r14:"Movimentadas (14 dias)",r30:"Movimentadas (30 dias)",todas:"Todas"};
-  const desc=modo==="tabela"?`Como exibido na tabela: ${FN[state.filter]||""}${state.local?" · Local: "+state.local:""}${state.dest.size?" · Destino: "+[...state.dest].join(", "):""}${state.q?" · Busca: "+state.q:""}`:"Cargas a bordo do Sayan Polaris";
+  const ret=opts.orient==="retrato";
+  const PW=ret?595.28:841.89,PH=ret?841.89:595.28,M=24,INK=hex("#14212e"),MUT=hex("#5b6b7a"),NAVY=hex("#14304a"),LINE=hex("#c9d2db");
+  const K0=resumoKpis(),emit=fmtDT(Date.now()),L=K0.L;
+  const {rows,desc}=linhasRelatorio(opts.cont);
   let page,y;const pages=[];
   const T=(t,x,yy,o={})=>page.drawText(pdfTxt(t),{x,y:yy,size:o.size||8,font:o.bold?FB:F,color:o.color||INK});
   const newPage=()=>{page=doc.addPage([PW,PH]);pages.push(page);y=PH-M;
@@ -613,68 +636,162 @@ async function gerarRelatorio(modo){
     y-=20;page.drawLine({start:{x:M,y},end:{x:PW-M,y},thickness:.6,color:LINE});y-=8};
   newPage();
   T("Relatório de cargas e convés",M,y-8,{size:10,color:MUT});
-  if(state.meta.arquivo){const b="Base Excel: "+state.meta.arquivo;T(b,PW-M-F.widthOfTextAtSize(pdfTxt(b),8),y-8,{color:MUT})}
+  if(state.meta.arquivo&&!ret){const b="Base Excel: "+state.meta.arquivo;T(b,PW-M-F.widthOfTextAtSize(pdfTxt(b),8),y-8,{color:MUT})}
   y-=20;
-  const pbm2=on.filter(([,c])=>!(isGC(c)||isFrat(c))).reduce((a,[,c])=>a+(sizeOf(c)||0),0);
-  const K=[["PETROBRAS",String(on.length-nav)],["NAVIO (GC + FRATELLI)",String(nav)],["TOTAL A BORDO",String(on.length)],["OCUPAÇÃO PETROBRAS",`${nf(pbm2,0)} m²  (${nf(pbm2/AREA_PB*100,1)}% de ${AREA_PB} m²)`],["ÚLTIMA MOVIMENTAÇÃO",fmtD(L)||"-"]];
-  const KW=[100,130,100,220,PW-2*M-100-130-100-220-4*8];let kx=M;
+  const K=[["PETROBRAS",String(K0.pb)],["NAVIO (GC + FRATELLI)",String(K0.nav)],["TOTAL A BORDO",String(K0.tot)],["OCUPAÇÃO PETROBRAS",`${nf(K0.pbm2,0)} m²  (${nf(K0.pct,1)}% de ${AREA_PB} m²)`],["ÚLTIMA MOVIMENTAÇÃO",fmtD(L)||"-"]];
+  const kb=[100,130,100,220,150],ksc=(PW-2*M-4*8)/kb.reduce((a,b)=>a+b,0);const KW=kb.map(w=>w*ksc);let kx=M;
   K.forEach(([l,v],i)=>{const w=KW[i];page.drawRectangle({x:kx,y:y-40,width:w,height:40,borderColor:LINE,borderWidth:.8,color:hex("#f7f9fb")});
-    T(l,kx+8,y-13,{size:7,color:MUT});T(v,kx+8,y-32,{size:i<3?18:i<4?13:14,bold:true});kx+=w+8});
+    T(l,kx+6,y-13,{size:ret?6:7,color:MUT});let fs=i<3?18:i<4?13:14;while(fs>7&&FB.widthOfTextAtSize(pdfTxt(v),fs)>w-12)fs-=.5;T(v,kx+6,y-32,{size:fs,bold:true});kx+=w+8});
   y-=56;
-  T(`Controle de cargas  ·  ${desc}  ·  ${rows.length} carga(s)`,M,y,{size:9,bold:true});y-=8;
-  const COLS=[["TAG",62],["Eslinga",44],["Vencimento",40],["Destino",46],["Peso (kg)",44],["Comp. (m)",26],["Larg. (m)",26],["UF Embarque",44],["UF Desemb.",44],["QTD",20],["Size (m²)",24],["M²",22],["Receb.",40],["Local atual",50],["Retorno",40],["Responsável",50],["Movimentações",132],["Última mov.",40],["Observações",84]];
-  /* modo "como está na tela": só as colunas visíveis na tabela, alargadas para ocupar a página */
-  const ALLC=COLS.slice();let keep=ALLC.map((_,i)=>i);
-  if(modo==="tabela"){const ths=[...document.querySelectorAll("#ctl thead th")].slice(1,1+ALLC.length);const k=ths.map((t,i)=>getComputedStyle(t).display!=="none"?i:-1).filter(i=>i>=0);if(k.length)keep=k}
-  {const tw=keep.reduce((a,i)=>a+ALLC[i][1],0),sc=Math.min((PW-2*M)/tw,3);COLS.length=0;keep.forEach(i=>COLS.push([ALLC[i][0],ALLC[i][1]*sc]))}
-  const FS=6.4,LH=7.6,PAD=1.8;
+  for(const ln of wrapPdf(`Controle de cargas  ·  ${desc}  ·  ${rows.length} carga(s)`,FB,9,PW-2*M)){T(ln,M,y,{size:9,bold:true});y-=11}y+=3;
+  const keep=opts.keep&&opts.keep.length?opts.keep:RCOLS.map((_,i)=>i);
+  const tw=keep.reduce((a,i)=>a+RCOLS[i][1],0),sc=Math.min((PW-2*M)/tw,3);const COLS=keep.map(i=>[RCOLS[i][0],RCOLS[i][1]*sc]);
+  const FS=Math.max(5,Math.min(6.4,6.4*sc)),LH=FS*1.19,PAD=1.8;
   const head=()=>{let x=M;const h=18;page.drawRectangle({x:M,y:y-h,width:PW-2*M,height:h,color:NAVY});
-    COLS.forEach(([t,w])=>{wrapPdf(t,FB,6.4,w-2*PAD).slice(0,2).forEach((ln,i)=>T(ln,x+PAD,y-7-i*7,{size:6.4,bold:true,color:rgb(1,1,1)}));x+=w});y-=h};
+    COLS.forEach(([t,w])=>{wrapPdf(t,FB,FS,w-2*PAD).slice(0,2).forEach((ln,i)=>T(ln,x+PAD,y-7-i*7,{size:FS,bold:true,color:rgb(1,1,1)}));x+=w});y-=h};
   head();
   for(const [,c] of rows){
-    const s=sizeOf(c),mm=c.qtd===1?(s||0):0;
+    const {s,mm}=valsRel(c);
     const vals=[c.tag,c.eslinga,fmtD(c.vencimento),c.destino,typeof c.peso==="number"?nf(c.peso):c.peso,nf(c.comp),nf(c.larg),c.ufEmb,c.ufDes,c.qtd===1?"1":"",s==null?"":nf(s),nf(mm),fmtD(c.dataReceb),c.local,c.retorno,c.responsavel,c.historico,fmtD(c.ultimaMov),c.obs];
     const vk=keep.map(i=>vals[i]);const cells=vk.map((v,i)=>wrapPdf(v==null?"":String(v),keep[i]===0?FB:F,FS,COLS[i][1]-2*PAD));
-    const h=Math.max(...cells.map(l=>l.length))*LH+2*PAD;
+    const h=Math.max(...cells.map(l=>l.length))*LH+2*PAD+1;
     if(y-h<M+14){newPage();head()}
-    const fill=isFrat(c)?"#FFC000":isGC(c)?"#FFFF00":(c.ultimaMov&&c.ultimaMov===L?"#DDD9C4":(c.destaque==="amarelo"?"#FFF27A":null));
+    const fill=corLinha(c,L);
     if(fill)page.drawRectangle({x:M,y:y-h,width:PW-2*M,height:h,color:hex(fill)});
-    let x=M;cells.forEach((ls,i)=>{ls.forEach((ln,j)=>T(ln,x+PAD,y-PAD-6-j*LH,{size:FS,bold:keep[i]===0,color:rotFim(c)?hex("#c2410c"):c.qtd===1?INK:hex("#7a1f1f")}));
+    let x=M;cells.forEach((ls,i)=>{ls.forEach((ln,j)=>T(ln,x+PAD,y-PAD-FS+.4-j*LH,{size:FS,bold:keep[i]===0,color:rotFim(c)?hex("#c2410c"):c.qtd===1?INK:hex("#7a1f1f")}));
       page.drawLine({start:{x:x+COLS[i][1],y},end:{x:x+COLS[i][1],y:y-h},thickness:.3,color:LINE});x+=COLS[i][1]});
     page.drawLine({start:{x:M,y:y-h},end:{x:PW-M,y:y-h},thickness:.3,color:LINE});page.drawLine({start:{x:M,y},end:{x:M,y:y-h},thickness:.3,color:LINE});
     y-=h;
   }
   if(!rows.length){T("Nenhuma carga.",M+4,y-12,{color:MUT});y-=18}
-  /* imagem do convés */
-  const im=await deckPng();const png=await doc.embedPng(im.bytes);
-  const maxW=PW-2*M;let w=maxW,h=w*im.h/im.w;const need=h+50;
-  if(y-M-14<Math.min(need,230)){newPage()}else y-=14;
-  const avail=y-M-14-36;if(h>avail){h=avail;w=h*im.w/im.h}
-  T("Visualização do deck  ·  cargas a bordo do Sayan Polaris  ·  1 quadrado = 0,6 m",M,y-8,{size:9,bold:true});y-=16;
-  page.drawImage(png,{x:M+(maxW-w)/2,y:y-h,width:w,height:h});page.drawRectangle({x:M+(maxW-w)/2,y:y-h,width:w,height:h,borderColor:LINE,borderWidth:.6});y-=h+12;
-  const seen=new Set();let lx=M;
-  [...LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>[c,n]),["#FFFFFF","Responsável a confirmar"],["RING","Próxima movimentação"]].forEach(([c,n])=>{
-    if(c==="RING")page.drawRectangle({x:lx,y:y-1,width:8,height:8,borderColor:hex("#e00000"),borderWidth:1.4});
-    else page.drawRectangle({x:lx,y:y-1,width:8,height:8,color:hex(c),borderColor:hex("#888888"),borderWidth:.4});T(n,lx+11,y,{size:7.5});lx+=18+F.widthOfTextAtSize(pdfTxt(n),7.5)});
+  if(opts.deck!==false){
+    const im=await deckPng();const png=await doc.embedPng(im.bytes);
+    const maxW=PW-2*M;let w=maxW,h=w*im.h/im.w;const need=h+50;
+    if(y-M-14<Math.min(need,ret?260:230)){newPage()}else y-=14;
+    const avail=y-M-14-36;if(h>avail){h=avail;w=h*im.w/im.h}
+    T("Visualização do deck  ·  cargas a bordo do Sayan Polaris  ·  1 quadrado = 0,6 m",M,y-8,{size:9,bold:true});y-=16;
+    page.drawImage(png,{x:M+(maxW-w)/2,y:y-h,width:w,height:h});page.drawRectangle({x:M+(maxW-w)/2,y:y-h,width:w,height:h,borderColor:LINE,borderWidth:.6});y-=h+12;
+    const seen=new Set();let lx=M;
+    [...LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>[c,n]),["#FFFFFF","Responsável a confirmar"],["RING","Próxima movimentação"]].forEach(([c,n])=>{
+      const wn=18+F.widthOfTextAtSize(pdfTxt(n),7.5);if(lx+wn>PW-M){lx=M;y-=12}
+      if(c==="RING")page.drawRectangle({x:lx,y:y-1,width:8,height:8,borderColor:hex("#e00000"),borderWidth:1.4});
+      else page.drawRectangle({x:lx,y:y-1,width:8,height:8,color:hex(c),borderColor:hex("#888888"),borderWidth:.4});T(n,lx+11,y,{size:7.5});lx+=wn});
+  }
   pages.forEach((p,i)=>{const t=`Sayan Polaris Deck Cargo Plan  ·  emitido em ${emit}  ·  página ${i+1} de ${pages.length}`;p.drawText(pdfTxt(t),{x:PW-M-F.widthOfTextAtSize(pdfTxt(t),7),y:12,size:7,font:F,color:MUT})});
   const bytes=await doc.save();
-  const d=new Date();const pp=new Intl.DateTimeFormat("pt-BR",{timeZone:TZ,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).formatToParts(d).reduce((o,x)=>(o[x.type]=x.value,o),{});
-  return{blob:new Blob([bytes],{type:"application/pdf"}),filename:`Relatorio Deck Cargo Plan - ${pp.day}.${pp.month}.${pp.year} ${pp.hour}h${pp.minute}.pdf`};
+  return{blob:new Blob([bytes],{type:"application/pdf"}),filename:nomeArq("Relatorio Deck Cargo Plan","pdf"),msg:"Relatório salvo. Abra o PDF para imprimir."};
 }
-async function entregarPdf(r){
+
+/* ---------- planilha Excel (ExcelJS): mesma tabela do relatório, com ou sem o plano de carga ---------- */
+const EXCELJS_URL="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+function loadExcelJS(){return window.ExcelJS?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement("script");s.src=EXCELJS_URL;s.onload=res;s.onerror=()=>rej(new Error("exceljs"));document.head.appendChild(s)})}
+async function gerarPlanilha(opts){
+  await loadExcelJS();
+  const wb=new window.ExcelJS.Workbook();wb.creator="Sayan Polaris Deck Cargo Plan";wb.created=new Date();
+  const K0=resumoKpis(),L=K0.L,emit=fmtDT(Date.now());const {rows,desc}=linhasRelatorio(opts.cont);
+  const keep=opts.keep&&opts.keep.length?opts.keep:RCOLS.map((_,i)=>i);const n=keep.length;
+  const ori=opts.orient==="retrato"?"portrait":"landscape";
+  const ws=wb.addWorksheet("Controle de cargas",{views:[{state:"frozen",ySplit:7}],
+    pageSetup:{paperSize:9,orientation:ori,fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,
+      margins:{left:.4,right:.4,top:.5,bottom:.5,header:.2,footer:.2},printTitlesRow:"7:7"},
+    headerFooter:{oddFooter:"&L&8Sayan Polaris Deck Cargo Plan · emitido em "+emit+"&R&8Página &P de &N"}});
+  const NAVY="FF14304A",LINE={style:"thin",color:{argb:"FFC9D2DB"}},BRD={top:LINE,left:LINE,bottom:LINE,right:LINE};
+  const last=String.fromCharCode(64+Math.min(n,26));
+  ws.columns=keep.map(i=>({width:RCOL_XLW[i]}));
+  ws.mergeCells(`A1:${last}1`);ws.getCell("A1").value="Sayan Polaris Deck Cargo Plan";ws.getCell("A1").font={bold:true,size:16,color:{argb:NAVY}};
+  ws.mergeCells(`A2:${last}2`);ws.getCell("A2").value="Relatório de cargas e convés · emitido em "+emit+(state.meta.arquivo?" · Base Excel: "+state.meta.arquivo:"");ws.getCell("A2").font={size:9,color:{argb:"FF5B6B7A"}};
+  /* resumo (cards) */
+  const K=[["PETROBRAS",K0.pb],["NAVIO (GC + FRATELLI)",K0.nav],["TOTAL A BORDO",K0.tot],["OCUPAÇÃO PETROBRAS",`${nf(K0.pbm2,0)} m² (${nf(K0.pct,1)}% de ${AREA_PB} m²)`],["ÚLTIMA MOVIMENTAÇÃO",fmtD(L)||"-"]];
+  if(n>=5){
+    /* cards lado a lado; ocupação e última movimentação ganham mais espaço */
+    const pw=[1,1.3,1,2,1.4],tot=pw.reduce((x,y)=>x+y,0);let col=1,acc=0;
+    K.forEach(([l,v],i)=>{acc+=pw[i];const c2=i===4?n:Math.max(col,Math.min(n-(4-i),Math.round(acc/tot*n)));
+      if(c2>col){ws.mergeCells(4,col,4,c2);ws.mergeCells(5,col,5,c2)}
+      const a=ws.getCell(4,col),b=ws.getCell(5,col);a.value=l;b.value=v;
+      a.font={size:8,color:{argb:"FF5B6B7A"}};b.font={size:i<3?16:12,bold:true,color:{argb:"FF14212E"}};
+      for(let cc=col;cc<=c2;cc++)for(const rr of[4,5]){const x=ws.getCell(rr,cc);x.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FB"}};x.border=BRD}
+      a.alignment={horizontal:"left",vertical:"middle",indent:1,wrapText:true};b.alignment={horizontal:"left",vertical:"middle",indent:1,shrinkToFit:true};col=c2+1});
+    ws.getRow(4).height=n<10?24:14;
+  }else{
+    ws.mergeCells(4,1,5,n);const a=ws.getCell(4,1);a.value=K.map(([l,v])=>l+": "+v).join("\n");
+    a.font={size:9,bold:true,color:{argb:"FF14212E"}};a.alignment={wrapText:true,vertical:"middle"};a.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FB"}};ws.getRow(4).height=36;
+  }
+  ws.getRow(5).height=24;
+  ws.mergeCells(`A6:${last}6`);ws.getCell("A6").value=`Controle de cargas · ${desc} · ${rows.length} carga(s)`;ws.getCell("A6").font={bold:true,size:10};
+  const hr=ws.getRow(7);keep.forEach((i,j)=>{const c=hr.getCell(j+1);c.value=RCOL_XL[i];c.font={bold:true,color:{argb:"FFFFFFFF"},size:9};
+    c.fill={type:"pattern",pattern:"solid",fgColor:{argb:NAVY}};c.alignment={vertical:"middle",horizontal:"center",wrapText:true};c.border=BRD});hr.height=30;
+  const dt=iso=>iso?new Date(Date.UTC(+iso.slice(0,4),+iso.slice(5,7)-1,+iso.slice(8,10))):null;
+  const num=v=>typeof v==="number"?v:(v==null||v===""?null:(isFinite(+String(v).replace(",","."))?+String(v).replace(",","."):v));
+  rows.forEach(([,c],k)=>{
+    const {s,mm}=valsRel(c);
+    const vals=[c.tag,c.eslinga,dt(c.vencimento),c.destino,num(c.peso),num(c.comp),num(c.larg),c.ufEmb,c.ufDes,c.qtd===1?1:null,s,mm,dt(c.dataReceb),c.local,c.retorno,c.responsavel,c.historico,dt(c.ultimaMov),c.obs];
+    const r=ws.getRow(8+k);const fill=corLinha(c,L);const cor=rotFim(c)?"FFC2410C":c.qtd===1?"FF14212E":"FF7A1F1F";
+    let lines=1;
+    keep.forEach((i,j)=>{const x=r.getCell(j+1);let v=vals[i];if(v===undefined||v==="")v=null;x.value=v;
+      if(v instanceof Date)x.numFmt="dd/mm/yyyy";else if(typeof v==="number"&&(i===5||i===6))x.numFmt="0.00";else if(typeof v==="number"&&i===4)x.numFmt="#,##0";
+      x.font={size:9,bold:i===0,color:{argb:cor}};x.alignment={vertical:"top",wrapText:true,horizontal:typeof v==="number"||v instanceof Date?"center":"left"};x.border=BRD;
+      if(fill)x.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF"+fill.slice(1).toUpperCase()}};
+      if(typeof v==="string"){const w=RCOL_XLW[i]*1.1;lines=Math.max(lines,v.split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/w)),0))}});
+    r.height=Math.min(409,Math.max(15,lines*12.5));
+  });
+  if(rows.length)ws.autoFilter={from:{row:7,column:1},to:{row:7+rows.length,column:n}};
+  else{ws.getCell(8,1).value="Nenhuma carga.";ws.getCell(8,1).font={italic:true,color:{argb:"FF5B6B7A"}}}
+  /* plano de carga: imagem do convés numa aba própria, pronta para imprimir */
+  if(opts.deck!==false){
+    const im=await deckPng();const id=wb.addImage({buffer:im.bytes,extension:"png"});
+    const wd=wb.addWorksheet("Plano de carga (deck)",{pageSetup:{paperSize:9,orientation:ori,fitToPage:true,fitToWidth:1,fitToHeight:1,horizontalCentered:true,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}},
+      headerFooter:{oddFooter:"&L&8Sayan Polaris Deck Cargo Plan · emitido em "+emit}});
+    wd.getCell("A1").value="Visualização do deck · cargas a bordo do Sayan Polaris · 1 quadrado = 0,6 m";wd.getCell("A1").font={bold:true,size:12,color:{argb:NAVY}};
+    wd.getCell("A2").value="Emitido em "+emit;wd.getCell("A2").font={size:9,color:{argb:"FF5B6B7A"}};
+    const Wpx=ori==="portrait"?700:1100,Hpx=Math.round(Wpx*im.h/im.w);
+    for(let cc=1;cc<=20;cc++)wd.getColumn(cc).width=ori==="portrait"?5:8;
+    wd.addImage(id,{tl:{col:0,row:3},ext:{width:Wpx,height:Hpx}});
+    const rowsImg=Math.ceil(Hpx/20)+4;let lr=4+rowsImg;
+    wd.getCell(lr,1).value="Legenda (responsável):";wd.getCell(lr,1).font={bold:true,size:9};lr++;
+    const seen=new Set();[...LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>[c,n]),["#FFFFFF","Responsável a confirmar"]].forEach(([c,nm],k)=>{
+      const x=wd.getCell(lr+k,1);x.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF"+c.slice(1).toUpperCase()}};x.border=BRD;
+      wd.getCell(lr+k,2).value=nm;wd.getCell(lr+k,2).font={size:9}});
+    wd.getCell(lr+8,1).border={top:{style:"medium",color:{argb:"FFE00000"}},left:{style:"medium",color:{argb:"FFE00000"}},bottom:{style:"medium",color:{argb:"FFE00000"}},right:{style:"medium",color:{argb:"FFE00000"}}};
+    wd.getCell(lr+8,2).value="Próxima movimentação (contorno vermelho)";wd.getCell(lr+8,2).font={size:9};
+  }
+  const buf=await wb.xlsx.writeBuffer();
+  return{blob:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),filename:nomeArq("Sayan Polaris Deck Cargo Plan - Tabela","xlsx"),msg:"Planilha salva."};
+}
+async function entregarArquivo(r){
   const dl=window.claude&&window.claude.use?await window.claude.use("downloads").catch(()=>null):null;
-  if(dl){try{await dl.save({filename:r.filename,data:r.blob});toast("Relatório salvo. Abra o PDF para imprimir.");return}catch(e){if(e&&e.code==="declined")return;if(e&&e.code==="rate_limited"){toast("Já existe uma confirmação aberta.");return}}}
-  const u=URL.createObjectURL(r.blob);const a=document.createElement("a");a.href=u;a.download=r.filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);toast("Relatório gerado.");
+  if(dl){try{await dl.save({filename:r.filename,data:r.blob});toast(r.msg);return}catch(e){if(e&&e.code==="declined")return;if(e&&e.code==="rate_limited"){toast("Já existe uma confirmação aberta.");return}}}
+  const u=URL.createObjectURL(r.blob);const a=document.createElement("a");a.href=u;a.download=r.filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);toast(r.msg);
 }
+const entregarPdf=entregarArquivo;
 $("#b-report").addEventListener("click",()=>{
-  openModal("Imprimir relatório",`<div class="pad"><p>Gera um PDF em paisagem (A4) com o resumo (Petrobras, Navio, Total, ocupação Petrobras e última movimentação), a tabela de controle com todas as colunas e a imagem do convés. Depois é só abrir o PDF para salvar ou imprimir.</p>
-   <div class="ropts"><label><input type="radio" name="rmodo" value="bordo" checked><span>Tabela com as cargas a bordo</span></label>
-   <label><input type="radio" name="rmodo" value="tabela"><span>Tabela como está na tela agora (filtros, busca e colunas escolhidas)</span></label></div>
-   <div style="display:flex;gap:8px;margin-top:14px"><button class="btn primary" id="r-ok">Gerar PDF</button><button class="btn" id="r-no">Cancelar</button></div></div>`);
+  let pr={};try{pr=JSON.parse(localStorage.getItem("dcp-rel")||"{}")||{}}catch(e){}
+  const cont0=["bordo","r7","r14","r30","tabela"].includes(pr.cont)?pr.cont:"bordo",ori0=pr.orient==="retrato"?"retrato":"paisagem",deck0=pr.deck!==false;
+  const op=(v,t)=>`<label><input type="radio" name="rmodo" value="${v}"${v===cont0?" checked":""}><span>${t}</span></label>`;
+  openModal("Imprimir relatório",`<div class="pad"><p>Gera o relatório com o resumo (Petrobras, Navio, Total, ocupação Petrobras e última movimentação) e a tabela de controle — em PDF para imprimir ou em planilha Excel.</p>
+   <h4 class="rh">Cargas</h4>
+   <div class="ropts">${op("bordo","Tabela com as cargas a bordo")}${op("r7","Movimentadas nos últimos 7 dias")}${op("r14","Movimentadas nos últimos 14 dias")}${op("r30","Movimentadas nos últimos 30 dias")}${op("tabela","Tabela como está na tela agora (filtros, busca e colunas escolhidas)")}</div>
+   <h4 class="rh">Colunas <span class="rcbt"><button type="button" class="chip" id="rc-all">Todas</button><button type="button" class="chip" id="rc-tela">Como na tela</button></span></h4>
+   <div class="rcols">${RCOL_XL.map((t,i)=>`<label><input type="checkbox" data-rc="${i}"><span>${t}</span></label>`).join("")}</div>
+   <h4 class="rh">Opções</h4>
+   <div class="ropts"><label><input type="checkbox" id="r-deck"${deck0?" checked":""}><span>Incluir o plano de carga (imagem do convés)</span></label></div>
+   <div class="rori"><span>Orientação da página:</span><label><input type="radio" name="rori" value="paisagem"${ori0==="paisagem"?" checked":""}><span>Paisagem</span></label><label><input type="radio" name="rori" value="retrato"${ori0==="retrato"?" checked":""}><span>Retrato</span></label></div>
+   <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap"><button class="btn primary" id="r-ok">Gerar PDF</button><button class="btn primary" id="r-xl">Gerar planilha (Excel)</button><button class="btn" id="r-no">Cancelar</button></div></div>`);
+  const cbs=[...document.querySelectorAll("[data-rc]")];
+  const setCols=k=>{const s=new Set(k);cbs.forEach(c=>c.checked=s.has(+c.dataset.rc))};
+  const tela=colunasNaTela();
+  setCols(Array.isArray(pr.cols)&&pr.cols.length?pr.cols:(cont0==="tabela"?tela:RCOLS.map((_,i)=>i)));
+  $("#rc-all").onclick=()=>setCols(RCOLS.map((_,i)=>i));$("#rc-tela").onclick=()=>setCols(tela);
+  document.querySelectorAll('input[name="rmodo"]').forEach(r=>r.onchange=()=>{if(r.value==="tabela"&&r.checked)setCols(tela)});
   $("#r-no").onclick=closeModal;
-  $("#r-ok").onclick=async()=>{const b=$("#r-ok");b.disabled=true;b.textContent="Gerando…";
-    try{const modo=(document.querySelector('input[name="rmodo"]:checked')||{}).value||"bordo";const r=await gerarRelatorio(modo);closeModal();await entregarPdf(r)}
-    catch(e){console.error(e);b.disabled=false;b.textContent="Gerar PDF";toast("Não foi possível gerar o relatório. Tente de novo.")}};
+  const ler=()=>{const o={cont:(document.querySelector('input[name="rmodo"]:checked')||{}).value||"bordo",keep:cbs.filter(c=>c.checked).map(c=>+c.dataset.rc),
+    deck:$("#r-deck").checked,orient:(document.querySelector('input[name="rori"]:checked')||{}).value||"paisagem"};
+    try{localStorage.setItem("dcp-rel",JSON.stringify({cont:o.cont,deck:o.deck,orient:o.orient,cols:o.keep}))}catch(e){}return o};
+  const rodar=async(btn,fn,txt)=>{const o=ler();if(!o.keep.length){toast("Escolha pelo menos uma coluna.");return}
+    const bs=[$("#r-ok"),$("#r-xl")];bs.forEach(b=>b.disabled=true);btn.textContent="Gerando…";
+    try{const r=await fn(o);closeModal();await entregarArquivo(r)}
+    catch(e){console.error(e);bs.forEach(b=>b.disabled=false);btn.textContent=txt;toast("Não foi possível gerar. Tente de novo.")}};
+  $("#r-ok").onclick=()=>rodar($("#r-ok"),gerarRelatorio,"Gerar PDF");
+  $("#r-xl").onclick=()=>rodar($("#r-xl"),gerarPlanilha,"Gerar planilha (Excel)");
 });
 /* ---------- histórico ---------- */
 function events(){
@@ -1422,7 +1539,7 @@ const DICT={en:{
 "Não foi possível salvar. Tente de novo.":"Kunne ikke lagre. Prøv igjen.","O banco desta página está cheio.":"Sidens database er full.","Carga girada.":"Last rotert.","Pedido recusado.":"Forespørsel avslått.",
 "Fratelli":"Fratelli","Petrobras / ACC / TLT":"Petrobras / ACC / TLT","GC Operações":"GC Operações"
 }};
-Object.assign(DICT.en,{"Depois de criar a conta, o administrador recebe o seu pedido e aprova o acesso de edição. Até lá, você vê tudo em modo leitura.":"After you create the account, the administrator gets your request and approves edit access. Until then you can see everything in read-only mode.","Conta criada":"Account created","Pedido de acesso":"Access request","Confirmar aprovação":"Confirm approval","Confirmar recusa":"Confirm decline","Recusar em vez disso":"Decline instead","Aprovar em vez disso":"Approve instead","Administrador": "Administrator", "Usuário": "User", "Aguardando aprovação": "Awaiting approval", "Acesso recusado": "Access denied", "Visitante · só leitura": "Visitor · read-only", "Entrar": "Sign in", "Sair": "Sign out", "Criar conta": "Create account", "Esqueci a senha": "Forgot password", "Entrar no Controle de Cargas": "Sign in to Cargo Control", "E-mail": "Email", "Senha": "Password", "Nome": "Name", "Senha (mín. 8)": "Password (min. 8)", "Função / motivo": "Role / reason", "E-mail da conta": "Account email", "Enviar link": "Send link", "Cancelar": "Cancel", "Confira o seu e-mail": "Check your email", "Criar nova senha": "Create new password", "Nova senha (mín. 8)": "New password (min. 8)", "Salvar senha": "Save password", "Acessos ao Controle de Cargas": "Access to Cargo Control", "Pedidos aguardando aprovação": "Requests awaiting approval", "Usuários": "Users", "Nenhum pedido.": "No requests.", "Aprovar como Usuário": "Approve as User", "Aprovar como Administrador": "Approve as Administrator", "Recusar": "Decline", "Sem acesso (recusado)": "No access (declined)", "Você": "You", "Você recebe um e-mail para confirmar o endereço. Depois, um administrador aprova o seu acesso de edição. Até lá, você vê tudo em modo leitura.": "You will get an email to confirm your address. Then an administrator approves your edit access. Until then you can see everything in read-only mode.", "Enviamos um link para você criar uma senha nova.": "We will email you a link to create a new password.", "Você está em modo visualização. Para editar cargas, entre com a sua conta (ou crie uma e aguarde a aprovação de um administrador).": "You are in view mode. To edit cargo, sign in (or create an account and wait for an administrator's approval).", "Seu cadastro aguarda a aprovação de um administrador. Enquanto isso, você vê tudo, mas não edita.": "Your account is waiting for an administrator's approval. Meanwhile you can see everything but not edit.", "Seu acesso de edição foi recusado por um administrador. Você continua vendo tudo.": "Your edit access was declined by an administrator. You can still see everything.", "Site ainda não conectado ao banco (config.js sem as chaves do Supabase).": "Site not yet connected to the database (config.js without Supabase keys).", "Bem-vindo!": "Welcome!", "Você saiu.": "You signed out.", "Acesso atualizado.": "Access updated.", "Senha alterada.": "Password changed.", "Link enviado. Confira o seu e-mail.": "Link sent. Check your email.", "E-mail ou senha incorretos.": "Wrong email or password.", "Confirme o seu e-mail pelo link que enviamos antes de entrar.": "Confirm your email using the link we sent before signing in."});Object.assign(DICT.no,{"Depois de criar a conta, o administrador recebe o seu pedido e aprova o acesso de edição. Até lá, você vê tudo em modo leitura.":"Når kontoen er opprettet, får administratoren forespørselen og godkjenner redigeringstilgang. Til da kan du se alt i lesemodus.","Conta criada":"Konto opprettet","Pedido de acesso":"Tilgangsforespørsel","Confirmar aprovação":"Bekreft godkjenning","Confirmar recusa":"Bekreft avslag","Recusar em vez disso":"Avslå i stedet","Aprovar em vez disso":"Godkjenn i stedet","Administrador": "Administrator", "Usuário": "Bruker", "Aguardando aprovação": "Venter på godkjenning", "Acesso recusado": "Tilgang avslått", "Visitante · só leitura": "Besøkende · kun lesing", "Entrar": "Logg inn", "Sair": "Logg ut", "Criar conta": "Opprett konto", "Esqueci a senha": "Glemt passord", "Entrar no Controle de Cargas": "Logg inn i lastkontrollen", "E-mail": "E-post", "Senha": "Passord", "Nome": "Navn", "Senha (mín. 8)": "Passord (min. 8)", "Função / motivo": "Rolle / grunn", "E-mail da conta": "Kontoens e-post", "Enviar link": "Send lenke", "Cancelar": "Avbryt", "Confira o seu e-mail": "Sjekk e-posten din", "Criar nova senha": "Lag nytt passord", "Nova senha (mín. 8)": "Nytt passord (min. 8)", "Salvar senha": "Lagre passord", "Acessos ao Controle de Cargas": "Tilgang til lastkontrollen", "Pedidos aguardando aprovação": "Forespørsler som venter", "Usuários": "Brukere", "Nenhum pedido.": "Ingen forespørsler.", "Aprovar como Usuário": "Godkjenn som bruker", "Aprovar como Administrador": "Godkjenn som administrator", "Recusar": "Avslå", "Sem acesso (recusado)": "Ingen tilgang (avslått)", "Você": "Deg", "Você está em modo visualização. Para editar cargas, entre com a sua conta (ou crie uma e aguarde a aprovação de um administrador).": "Du er i visningsmodus. For å redigere last, logg inn (eller opprett en konto og vent på godkjenning fra en administrator).", "Seu cadastro aguarda a aprovação de um administrador. Enquanto isso, você vê tudo, mas não edita.": "Kontoen din venter på godkjenning. Du kan se alt, men ikke redigere.", "Bem-vindo!": "Velkommen!", "Você saiu.": "Du er logget ut.", "Acesso atualizado.": "Tilgang oppdatert.", "E-mail ou senha incorretos.": "Feil e-post eller passord."});
+Object.assign(DICT.en,{"Gera o relatório com o resumo (Petrobras, Navio, Total, ocupação Petrobras e última movimentação) e a tabela de controle — em PDF para imprimir ou em planilha Excel.": "Builds the report with the summary (Petrobras, Vessel, Total, Petrobras occupancy and last movement) and the control table — as a PDF to print or as an Excel spreadsheet.", "Cargas": "Cargo", "Movimentadas nos últimos 7 dias": "Moved in the last 7 days", "Movimentadas nos últimos 14 dias": "Moved in the last 14 days", "Movimentadas nos últimos 30 dias": "Moved in the last 30 days", "Como na tela": "As on screen", "Opções": "Options", "Incluir o plano de carga (imagem do convés)": "Include the cargo plan (deck image)", "Orientação da página:": "Page orientation:", "Paisagem": "Landscape", "Retrato": "Portrait", "Gerar planilha (Excel)": "Generate spreadsheet (Excel)", "Escolha pelo menos uma coluna.": "Choose at least one column.", "Planilha salva.": "Spreadsheet saved.", "Não foi possível gerar. Tente de novo.": "Could not generate it. Try again.", "UF Desembarque": "Unloading UF", "Gerando…": "Generating…","Depois de criar a conta, o administrador recebe o seu pedido e aprova o acesso de edição. Até lá, você vê tudo em modo leitura.":"After you create the account, the administrator gets your request and approves edit access. Until then you can see everything in read-only mode.","Conta criada":"Account created","Pedido de acesso":"Access request","Confirmar aprovação":"Confirm approval","Confirmar recusa":"Confirm decline","Recusar em vez disso":"Decline instead","Aprovar em vez disso":"Approve instead","Administrador": "Administrator", "Usuário": "User", "Aguardando aprovação": "Awaiting approval", "Acesso recusado": "Access denied", "Visitante · só leitura": "Visitor · read-only", "Entrar": "Sign in", "Sair": "Sign out", "Criar conta": "Create account", "Esqueci a senha": "Forgot password", "Entrar no Controle de Cargas": "Sign in to Cargo Control", "E-mail": "Email", "Senha": "Password", "Nome": "Name", "Senha (mín. 8)": "Password (min. 8)", "Função / motivo": "Role / reason", "E-mail da conta": "Account email", "Enviar link": "Send link", "Cancelar": "Cancel", "Confira o seu e-mail": "Check your email", "Criar nova senha": "Create new password", "Nova senha (mín. 8)": "New password (min. 8)", "Salvar senha": "Save password", "Acessos ao Controle de Cargas": "Access to Cargo Control", "Pedidos aguardando aprovação": "Requests awaiting approval", "Usuários": "Users", "Nenhum pedido.": "No requests.", "Aprovar como Usuário": "Approve as User", "Aprovar como Administrador": "Approve as Administrator", "Recusar": "Decline", "Sem acesso (recusado)": "No access (declined)", "Você": "You", "Você recebe um e-mail para confirmar o endereço. Depois, um administrador aprova o seu acesso de edição. Até lá, você vê tudo em modo leitura.": "You will get an email to confirm your address. Then an administrator approves your edit access. Until then you can see everything in read-only mode.", "Enviamos um link para você criar uma senha nova.": "We will email you a link to create a new password.", "Você está em modo visualização. Para editar cargas, entre com a sua conta (ou crie uma e aguarde a aprovação de um administrador).": "You are in view mode. To edit cargo, sign in (or create an account and wait for an administrator's approval).", "Seu cadastro aguarda a aprovação de um administrador. Enquanto isso, você vê tudo, mas não edita.": "Your account is waiting for an administrator's approval. Meanwhile you can see everything but not edit.", "Seu acesso de edição foi recusado por um administrador. Você continua vendo tudo.": "Your edit access was declined by an administrator. You can still see everything.", "Site ainda não conectado ao banco (config.js sem as chaves do Supabase).": "Site not yet connected to the database (config.js without Supabase keys).", "Bem-vindo!": "Welcome!", "Você saiu.": "You signed out.", "Acesso atualizado.": "Access updated.", "Senha alterada.": "Password changed.", "Link enviado. Confira o seu e-mail.": "Link sent. Check your email.", "E-mail ou senha incorretos.": "Wrong email or password.", "Confirme o seu e-mail pelo link que enviamos antes de entrar.": "Confirm your email using the link we sent before signing in."});Object.assign(DICT.no,{"Gera o relatório com o resumo (Petrobras, Navio, Total, ocupação Petrobras e última movimentação) e a tabela de controle — em PDF para imprimir ou em planilha Excel.": "Lager rapporten med sammendrag (Petrobras, Skip, Totalt, Petrobras-belegg og siste bevegelse) og kontrolltabellen — som PDF for utskrift eller som Excel-regneark.", "Cargas": "Last", "Movimentadas nos últimos 7 dias": "Flyttet siste 7 dager", "Movimentadas nos últimos 14 dias": "Flyttet siste 14 dager", "Movimentadas nos últimos 30 dias": "Flyttet siste 30 dager", "Como na tela": "Som på skjermen", "Opções": "Valg", "Incluir o plano de carga (imagem do convés)": "Ta med lasteplanen (bilde av dekket)", "Orientação da página:": "Sideretning:", "Paisagem": "Liggende", "Retrato": "Stående", "Gerar planilha (Excel)": "Lag regneark (Excel)", "Escolha pelo menos uma coluna.": "Velg minst én kolonne.", "Planilha salva.": "Regneark lagret.", "Não foi possível gerar. Tente de novo.": "Kunne ikke lage den. Prøv igjen.", "UF Desembarque": "Lossing UF", "Gerando…": "Lager…","Depois de criar a conta, o administrador recebe o seu pedido e aprova o acesso de edição. Até lá, você vê tudo em modo leitura.":"Når kontoen er opprettet, får administratoren forespørselen og godkjenner redigeringstilgang. Til da kan du se alt i lesemodus.","Conta criada":"Konto opprettet","Pedido de acesso":"Tilgangsforespørsel","Confirmar aprovação":"Bekreft godkjenning","Confirmar recusa":"Bekreft avslag","Recusar em vez disso":"Avslå i stedet","Aprovar em vez disso":"Godkjenn i stedet","Administrador": "Administrator", "Usuário": "Bruker", "Aguardando aprovação": "Venter på godkjenning", "Acesso recusado": "Tilgang avslått", "Visitante · só leitura": "Besøkende · kun lesing", "Entrar": "Logg inn", "Sair": "Logg ut", "Criar conta": "Opprett konto", "Esqueci a senha": "Glemt passord", "Entrar no Controle de Cargas": "Logg inn i lastkontrollen", "E-mail": "E-post", "Senha": "Passord", "Nome": "Navn", "Senha (mín. 8)": "Passord (min. 8)", "Função / motivo": "Rolle / grunn", "E-mail da conta": "Kontoens e-post", "Enviar link": "Send lenke", "Cancelar": "Avbryt", "Confira o seu e-mail": "Sjekk e-posten din", "Criar nova senha": "Lag nytt passord", "Nova senha (mín. 8)": "Nytt passord (min. 8)", "Salvar senha": "Lagre passord", "Acessos ao Controle de Cargas": "Tilgang til lastkontrollen", "Pedidos aguardando aprovação": "Forespørsler som venter", "Usuários": "Brukere", "Nenhum pedido.": "Ingen forespørsler.", "Aprovar como Usuário": "Godkjenn som bruker", "Aprovar como Administrador": "Godkjenn som administrator", "Recusar": "Avslå", "Sem acesso (recusado)": "Ingen tilgang (avslått)", "Você": "Deg", "Você está em modo visualização. Para editar cargas, entre com a sua conta (ou crie uma e aguarde a aprovação de um administrador).": "Du er i visningsmodus. For å redigere last, logg inn (eller opprett en konto og vent på godkjenning fra en administrator).", "Seu cadastro aguarda a aprovação de um administrador. Enquanto isso, você vê tudo, mas não edita.": "Kontoen din venter på godkjenning. Du kan se alt, men ikke redigere.", "Bem-vindo!": "Velkommen!", "Você saiu.": "Du er logget ut.", "Acesso atualizado.": "Tilgang oppdatert.", "E-mail ou senha incorretos.": "Feil e-post eller passord."});
 const W={
  en:{carga:"Cargo",edit:"Edit cargo ",pos:"Position of ",imp:"Import ",all:"All",acc:(n)=>`Access (${n} request${n>1?"s":""})`,semPos:(n)=>`Add cargo to deck (${n} without position)`,mov:(n)=>`${n} movement${n>1?"s":""}`,
    added:(t)=>`Cargo ${t} added.`,saved:(t)=>`Cargo ${t} saved.`,upd:(t)=>`Cargo ${t} updated.`,possaved:(t)=>`Position of ${t} saved.`,deckadd:(t)=>`${t} added to the deck.`,placed:(t)=>`${t} placed on the deck — adjust the position.`,
