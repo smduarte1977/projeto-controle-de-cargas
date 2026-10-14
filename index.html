@@ -169,6 +169,7 @@ details.add[open] summary::before{content:"–"}
 .form{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 12px;padding:0 16px 16px}
 .form label{display:grid;gap:3px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);min-width:0}
 .form input,.form select,.form textarea{border:1px solid var(--line);border-radius:5px;background:var(--bg);padding:6px 8px;font-size:13.5px;text-transform:none;letter-spacing:0;color:var(--ink);min-width:0;width:100%}
+.form input:not([type=email]):not([type=password]):not([type=date]):not([type=number]),.form textarea{text-transform:uppercase!important}#mv-u,#d-tag{text-transform:uppercase}#f-criar input,#f-login input,#f-senha input,#f-ns input{text-transform:none!important}
 .form textarea{min-height:64px;font-family:var(--f-mono);font-size:12px}
 .form .wide{grid-column:1/-1}
 .form .actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -404,10 +405,14 @@ function vencTd(v){if(!v)return'<td class="mono"></td>';const h=hojeSP(),d=Strin
   const cl=d<h?"venc-x":(d<=lim?"venc-s":"");return `<td class="mono ${cl}" title="${d<h?"Vencido":(cl?"Vence em até 30 dias":"")}">${fmtD(d)}</td>`}
 /* B-PORT / B-PORT OFF passam a ser registrados como PACU */
 const RX_BPORT=/\bB[\s-]?PORT(?:\s+OFF)?/gi;
+/* todas as entradas de texto ficam em CAIXA ALTA, não importa como o usuário digitou */
+const CAMPOS_MAIUSC=["tag","label","eslinga","destino","ufEmb","ufDes","local","retorno","responsavel","historico","obs","origemUnidade"];
+const maiusc=v=>typeof v==="string"?v.toLocaleUpperCase("pt-BR"):v;
 function pacuFix(p){
   const o=Object.assign({},p);
+  for(const k of CAMPOS_MAIUSC)if(typeof o[k]==="string")o[k]=maiusc(o[k]);
   for(const k of ["local","destino","retorno","historico","obs","origemUnidade"])if(typeof o[k]==="string")o[k]=o[k].replace(RX_BPORT,"PACU").replace(/ROTA[CÇ][AÃ]O\s*FINALIZAD[OA]/gi,"ROTAÇÃO FINALIZADA");
-  if(o.prox&&typeof o.prox==="object"){o.prox=Object.assign({},o.prox);for(const k of ["unidade","origem"])if(typeof o.prox[k]==="string")o.prox[k]=o.prox[k].replace(RX_BPORT,"PACU")}
+  if(o.prox&&typeof o.prox==="object"){o.prox=Object.assign({},o.prox);for(const k of ["unidade","origem"])if(typeof o.prox[k]==="string")o.prox[k]=maiusc(o.prox[k].replace(RX_BPORT,"PACU"))}
   return o;
 }
 /* saída para base em terra (PACU/BMAC) = "Desembarque PACU|BMAC"; demais unidades = "CONVÉS U (enviada do Polaris)" */
