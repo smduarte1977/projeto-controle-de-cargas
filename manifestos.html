@@ -299,7 +299,7 @@ tbody td.wrapc{white-space:normal;min-width:260px}
       <div class="eyebrow">MPSV · Cargo manifestos · Granenergia</div>
       <h1>Sayan Polaris <span>Cargo Manifestos</span></h1>
       <div class="hint" id="baseinfo">Carregando dados…</div>
-      <div class="access"><span class="role" id="role">Verificando acesso…</span><button class="btn small" id="b-login" type="button">Entrar</button><button class="btn small" id="b-theme" type="button" title="Alternar tema claro/escuro">Tema</button></div>
+      <div class="access"><span class="role" id="role">Verificando acesso…</span><button class="btn small" id="b-login" type="button">Entrar</button></div>
     </div>
     <div class="kpis" aria-live="polite">
       <div class="kpi"><small>Manifestos abertos</small><b id="k-ab">–</b></div>
@@ -313,7 +313,7 @@ tbody td.wrapc{white-space:normal;min-width:260px}
   <nav class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-tab="lista">Manifestos</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="rastreio">Rastreio por TAG</button>
-    <a class="navlink" href="index.html">Deck Cargo Plan ↗</a>
+    <a class="navlink" id="b-deck" href="index.html" hidden>Deck Cargo Plan ↗</a>
   </nav>
 
   <div class="localbar" id="localbar" hidden style="border-radius:8px;border:1px solid var(--line)"></div>
@@ -368,7 +368,7 @@ tbody td.wrapc{white-space:normal;min-width:260px}
 "use strict";
 const CFG=window.CONTROLE_CARGAS_CONFIG||{};
 const $=s=>document.querySelector(s);
-const state={ms:new Map(),cargas:new Map(),f:"abertos",q:"",open:null,role:"visitante",canWrite:false,isAdmin:false,local:false,user:null,perfil:null,tab:"lista"};
+const state={ms:new Map(),cargas:new Map(),f:"abertos",q:"",open:null,role:"visitante",canWrite:false,isAdmin:false,isGC:false,local:false,user:null,perfil:null,tab:"lista"};
 let sb=null;
 
 /* ================= utilidades (mesmas convenções do Deck Cargo Plan) ================= */
@@ -409,6 +409,8 @@ const stc=s=>"s-"+deacc(s).replace(/\s+/g,"-");
 const STATUS=["RASCUNHO","EMITIDO","EM TRÂNSITO","RECEBIDO A BORDO","COM DIVERGÊNCIA","CONFERIDO","ENCERRADO","CANCELADO"];
 const FECHADOS=["ENCERRADO","CANCELADO"];
 const SENTIDOS=["EMBARQUE","DESEMBARQUE","BACKLOAD"];
+/* destino (Para): lista fixa + "OUTRO LOCAL…" para digitar */
+const DESTINOS=["SAYAN POLARIS","OLYMPIA","VENUS","RELIANCE"];
 const EMBALAGENS=["CESTA","CONTÊINER","SKID","CAIXA","TAMBOR","TANQUE","BAG","PALETE","TUBULAR","OUTRO"];
 const UAS=["UA","KG","L","CX","M"];
 const DEPTOS=["HOSPITAL","SHIP","COZINHA","MÁQUINAS","CONVÉS","OUTRO"];
@@ -499,6 +501,7 @@ function renderList(){
   if(state.f==="abertos")list=list.filter(m=>!FECHADOS.includes(m.status));else if(state.f==="encerrados")list=list.filter(m=>FECHADOS.includes(m.status));
   list=list.filter(m=>match(m,state.q)).sort((a,b)=>(b.data||"").localeCompare(a.data||"")||String(b.codigo).localeCompare(String(a.codigo)));
   $("#b-exemplo").hidden=!(state.canWrite&&!vivos().some(m=>m.codigo==="047-2026"));
+  if(!state.isGC){tb.innerHTML=`<tr><td colspan="11" class="empty">Acesso restrito a Usuários GC e Administradores.</td></tr>`;return}
   if(!list.length){tb.innerHTML=`<tr><td colspan="11" class="empty">${vivos().length?"Nenhum manifesto neste filtro.":"Nenhum manifesto ainda. Use “Novo manifesto”, “Importar Excel” ou “Carregar 047-2026”."}</td></tr>`;return}
   tb.innerHTML=list.map(m=>{const t=totals(m),a=alertsOf(m).length;
     return `<tr><td><button class="mlink" data-open="${esc(m.id)}">${esc(m.codigo)}</button></td><td class="mono">${fmtD(m.data)}</td><td>${esc(m.sentido)}</td><td>${esc(m.de)} → ${esc(m.para)}</td>
@@ -641,7 +644,9 @@ function editHead(m,isNew){
     <label>Data<input id="h-data" type="date" value="${esc(m.data)}" required></label>
     <label>Sentido<select id="h-sentido">${opt(SENTIDOS,m.sentido)}</select></label>
     <fieldset><legend>Logística</legend>
-      <label>De<input id="h-de" value="${esc(m.de)}"></label><label>Para<input id="h-para" value="${esc(m.para)}"></label>
+      <label>De<input id="h-de" value="${esc(m.de)}"></label>
+      <label>Para<select id="h-para-sel">${DESTINOS.map(d=>`<option${d===m.para?" selected":""}>${d}</option>`).join("")}<option value="__outro"${m.para&&!DESTINOS.includes(m.para)?" selected":""}>OUTRO LOCAL…</option></select></label>
+      <label id="h-para-l"${m.para&&!DESTINOS.includes(m.para)?"":" hidden"}>Outro local (digite)<input id="h-para" value="${esc(DESTINOS.includes(m.para)?"":m.para)}" placeholder="NOME DO LOCAL"></label>
       <label class="wide">Responsável (separe com /)<input id="h-resp" value="${esc(m.responsaveis)}"></label>
       <label class="wide">Telefone<input id="h-tel" value="${esc(m.telefones)}"></label></fieldset>
     <fieldset><legend>Transporte</legend>
@@ -650,8 +655,9 @@ function editHead(m,isNew){
     <label class="wide">Observações<textarea id="h-obs">${esc(m.obs)}</textarea></label>
     <div class="errbox" id="h-err"></div>
     <div class="actions"><button class="btn primary">${isNew?"Criar manifesto":"Salvar"}</button></div></form>`);
+  const ps=$("#h-para-sel");ps.onchange=()=>{const o=ps.value==="__outro";$("#h-para-l").hidden=!o;if(o)$("#h-para").focus()};
   $("#f-h").onsubmit=async e=>{e.preventDefault();const n=clone(m);
-    n.codigo=up(fv("h-codigo")).replace(/\s+/g,"");n.data=fv("h-data");n.sentido=fv("h-sentido");n.de=up(fv("h-de"));n.para=up(fv("h-para"));n.responsaveis=up(fv("h-resp"));n.telefones=up(fv("h-tel"));
+    n.codigo=up(fv("h-codigo")).replace(/\s+/g,"");n.data=fv("h-data");n.sentido=fv("h-sentido");n.de=up(fv("h-de"));n.para=fv("h-para-sel")==="__outro"?up(fv("h-para")):fv("h-para-sel");if(!n.para){$("#h-err").textContent="Informe o local de destino (Para).";return}n.responsaveis=up(fv("h-resp"));n.telefones=up(fv("h-tel"));
     n.rt=up(fv("h-rt"));n.nf=up(fv("h-nf"));n.transportadora=up(fv("h-tr"));n.cte=up(fv("h-cte"));n.obs=up(fv("h-obs"));
     if(!/^\d{1,4}-\d{4}$/.test(n.codigo)){$("#h-err").textContent="Código no formato NNN-AAAA (ex.: 047-2026).";return}
     const id="m-"+n.codigo;if(vivos().some(o=>o.codigo===n.codigo&&o.id!==m.id)){$("#h-err").textContent="Já existe um manifesto com esse código.";return}
@@ -899,7 +905,7 @@ function exportXls(m){
 
 /* ================= rastreio por TAG ================= */
 function renderRastreio(){
-  const q=$("#qt").value.trim();const box=$("#rastro");if(!q){box.innerHTML='<div class="empty">Digite uma TAG para ver a linha do tempo.</div>';return}
+  const q=$("#qt").value.trim();const box=$("#rastro");if(!state.isGC){box.innerHTML='<div class="empty">Acesso restrito a Usuários GC e Administradores.</div>';return}if(!q){box.innerHTML='<div class="empty">Digite uma TAG para ver a linha do tempo.</div>';return}
   const K=key(q);const ms=vivos().filter(m=>m.contentores.some(c=>key(c.tag)===K)).sort((a,b)=>(a.data||"").localeCompare(b.data||""));const dk=deckOf(q);
   if(!ms.length&&!dk){box.innerHTML=`<div class="empty">Nenhum manifesto ou carga do Deck com a TAG ${esc(normTag(q))}.</div>`;return}
   const ev=[];for(const m of ms){const c=m.contentores.find(x=>key(x.tag)===K);ev.push({em:m.data,h:`<span class="pill mv">${esc(m.sentido)}</span>`,t:`<button class="mlink" data-open="${esc(m.id)}">${esc(m.codigo)}</button> · ${esc(m.de)} → ${esc(m.para)} · <span class="st ${stc(m.status)}">${esc(m.status)}</span> · contentor ${esc(c.status||"NA BASE")} · ${totals(m).linhas} linhas`});
@@ -921,27 +927,28 @@ function render(){
   renderKpis();if(state.local)$("#baseinfo").textContent=`${vivos().length} manifesto(s) neste navegador`;
   const det=state.tab==="lista"&&state.open&&state.ms.has(state.open);
   $("#p-lista").hidden=state.tab!=="lista"||det;$("#p-det").hidden=!det;$("#p-rastreio").hidden=state.tab!=="rastreio";
-  $("#b-novo").disabled=$("#b-imp").disabled=!state.canWrite;
+  $("#b-novo").disabled=$("#b-imp").disabled=!state.canWrite;$("#b-novo").hidden=$("#b-imp").hidden=!state.isGC;
   if(det)renderDet();else if(state.tab==="lista")renderList();else renderRastreio();
 }
 
-/* ================= tema (mesma chave do Deck) ================= */
-const RT=document.documentElement;try{const sv=localStorage.getItem("dcp-theme");if(sv==="light"||sv==="dark")RT.setAttribute("data-theme",sv)}catch(e){}
-$("#b-theme").onclick=()=>{const dark=RT.getAttribute("data-theme")==="dark"||(!RT.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme: dark)").matches);const nv=dark?"light":"dark";RT.setAttribute("data-theme",nv);try{localStorage.setItem("dcp-theme",nv)}catch(e){}};
-
 /* ================= acesso (mesmos perfis do Deck: admin / usuário aprovado / visitante) ================= */
-const ROLE_TXT={admin:"Administrador",usuario:"Usuário",pendente:"Aguardando aprovação",recusado:"Acesso recusado",visitante:"Visitante · só leitura",local:"Modo local · este navegador"};
+const ROLE_TXT={admin:"Administrador",usuario_gc:"Usuário GC",usuario:"Usuário · sem acesso aos manifestos",pendente:"Aguardando aprovação",recusado:"Acesso recusado",visitante:"Visitante · sem acesso aos manifestos",local:"Modo local · este navegador"};
+/* Cargo Manifestos: visíveis e habilitados só para USUÁRIO GC e ADMINISTRADOR aprovados */
+const ehGC=p=>!!p&&p.status==="aprovado"&&(p.papel==="usuario_gc"||p.papel==="admin");
 function computeRole(){
   const p=state.perfil;
-  if(state.local){state.role="local";state.canWrite=true;state.isAdmin=true}
-  else if(!state.user){state.role="visitante";state.canWrite=false}
-  else if(!p||p.status==="pendente"){state.role="pendente";state.canWrite=false}
-  else if(p.status==="recusado"){state.role="recusado";state.canWrite=false}
-  else{state.role=p.papel==="admin"?"admin":"usuario";state.canWrite=true}
-  if(!state.local)state.isAdmin=state.role==="admin";
-  const el=$("#role");el.className="role "+(state.role==="admin"||state.role==="local"?"owner":state.role==="usuario"?"editor":"");el.textContent=ROLE_TXT[state.role];
+  if(!state.user){state.role="visitante"}
+  else if(!p||p.status==="pendente"){state.role="pendente"}
+  else if(p.status==="recusado"){state.role="recusado"}
+  else state.role=p.papel==="admin"?"admin":p.papel==="usuario_gc"?"usuario_gc":p.papel==="usuario"?"usuario":"visitante";
+  state.isGC=ehGC(p);
+  if(state.local&&state.isGC)state.role="local";
+  state.canWrite=state.isGC;state.isAdmin=state.isGC&&p.papel==="admin";
+  if(!state.isGC)state.ms=new Map();else if(state.local&&!state.ms.size)state.ms=localLoad();
+  const el=$("#role");el.className="role "+(state.role==="admin"||state.role==="local"?"owner":state.role==="usuario_gc"?"editor":"");el.textContent=ROLE_TXT[state.role];
   $("#b-login").textContent=state.user?"Sair":"Entrar";$("#b-login").hidden=state.local&&!sb;
-  const ro=$("#ro");ro.hidden=state.canWrite;ro.textContent=state.role==="pendente"?"Seu cadastro aguarda a aprovação de um administrador.":state.role==="recusado"?"Seu acesso de edição foi recusado.":"Os manifestos só aparecem para usuários aprovados. Entre com a mesma conta do Deck Cargo Plan.";
+  $("#b-deck").hidden=!state.isGC;
+  const ro=$("#ro");ro.hidden=state.isGC;ro.textContent=state.role==="pendente"?"Seu cadastro aguarda a aprovação de um administrador.":state.role==="recusado"?"Seu acesso foi recusado.":state.user?"Os Cargo Manifestos são restritos a Usuários GC e Administradores. Peça o acesso a um administrador.":"Os Cargo Manifestos são restritos a Usuários GC e Administradores. Entre com a mesma conta do Deck Cargo Plan.";
   render();
 }
 function abrirLogin(){openModal("Entrar",`<form class="form" id="f-login" style="padding-top:16px"><label class="wide">E-mail<input id="l-email" type="email" required autocomplete="username"></label><label class="wide">Senha<input id="l-senha" type="password" required autocomplete="current-password"></label>
@@ -978,6 +985,89 @@ async function aplicarSessao(session){
   }catch(e){modoLocal("sem conexão com o banco.")}
 })();
 })();
+</script>
+<script>
+/* ---------- idioma (PT-BR / EN / NO) e tema claro/escuro — mesmos botões e mesmas preferências do Deck Cargo Plan ---------- */
+(function(){
+"use strict";
+const DICT={en:{"Outro local (digite)": "Other location (type it)", "OUTRO LOCAL…": "OTHER LOCATION…", "NOME DO LOCAL": "LOCATION NAME", "Informe o local de destino (Para).": "Enter the destination (To).","Carregando dados…": "Loading data…", "Verificando acesso…": "Checking access…", "Entrar": "Sign in", "Sair": "Sign out", "Manifestos abertos": "Open manifests", "Linhas a receber": "Lines to receive", "Peso em aberto": "Open weight", "Valor em aberto": "Open value", "Alertas": "Alerts", "Manifestos": "Manifests", "Rastreio por TAG": "Track by TAG", "Abertos": "Open", "Encerrados": "Closed", "Todos": "All", "Buscar código, TAG, PR, PO, item SAP, material…": "Search code, TAG, PR, PO, SAP item, material…", "Novo manifesto": "New manifest", "Importar Excel": "Import Excel", "Carregar 047-2026": "Load 047-2026", "Código": "Code", "Data": "Date", "Sentido": "Direction", "De → Para": "From → To", "TAG(s)": "TAG(s)", "Linhas": "Lines", "Recebidas": "Received", "Peso (kg)": "Weight (kg)", "Valor (R$)": "Value (R$)", "Status": "Status", "Carregando…": "Loading…", "Nenhum manifesto neste filtro.": "No manifests in this filter.", "Nenhum manifesto ainda. Use “Novo manifesto”, “Importar Excel” ou “Carregar 047-2026”.": "No manifests yet. Use “New manifest”, “Import Excel” or “Load 047-2026”.", "Acesso restrito a Usuários GC e Administradores.": "Access restricted to GC users and Administrators.", "Manifestos, mudanças de status e situação no Deck Cargo Plan": "Manifests, status changes and Deck Cargo Plan status", "TAG (ex.: GRAN CT 003)": "TAG (e.g. GRAN CT 003)", "Digite uma TAG para ver a linha do tempo.": "Type a TAG to see the timeline.", "Sem manifestos com essa TAG.": "No manifests with this TAG.", "Abrir no Deck": "Open in Deck", "← Manifestos": "← Manifests", "Editar cabeçalho": "Edit header", "Imprimir / PDF": "Print / PDF", "Exportar Excel": "Export Excel", "Cancelar": "Cancel", "Excluir rascunho": "Delete draft", "Emitir": "Issue", "Em trânsito": "In transit", "Recebido a bordo": "Received on board", "Conferir": "Check", "Encerrar": "Close", "LOGÍSTICA": "LOGISTICS", "TRANSPORTE": "TRANSPORT", "De": "From", "Para": "To", "Responsável": "Person in charge", "Telefone": "Phone", "Obs.": "Notes", "Nota fiscal": "Invoice", "Transportadora": "Carrier", "Embalagem": "Packaging", "Tipo": "Type", "Eslinga": "Sling", "Tara (kg)": "Tare (kg)", "Nº SAP": "SAP no.", "Dimensão": "Dimensions", "Vencimento": "Expiry", "Selo": "Seal", "Guindaste": "Crane", "Caixa térmica": "Cool box", "Carga perigosa": "Dangerous goods", "Divergência": "Discrepancy", "a confirmar": "to be confirmed", "SIM": "YES", "NÃO": "NO", "Editar": "Edit", "Usar dados do Deck": "Use Deck data", "Ver no Deck Cargo Plan": "View in Deck Cargo Plan", "No Deck Cargo Plan:": "In Deck Cargo Plan:", "Deck Cargo Plan:": "Deck Cargo Plan:", "Sem pendências": "No pending issues", "MATERIAIS": "MATERIALS", "| RECEPTOR": "| RECEIVING", "Adicionar linha": "Add line", "Colar do Excel": "Paste from Excel", "Adicionar contentor": "Add container", "Receber linhas": "Receive lines", "Desfazer conferência do contentor": "Undo container check", "Contentor conferido": "Container checked", "PR Máximo": "PR Máximo", "PO SAP": "SAP PO", "Descrição": "Description", "UA": "UA", "Qtd": "Qty", "Item SAP": "SAP item", "Custo unit (R$)": "Unit cost (R$)", "Custo linha (R$)": "Line cost (R$)", "Peso unit (kg)": "Unit weight (kg)", "Peso total (kg)": "Total weight (kg)", "Observação": "Remark", "Departamento": "Department", "Assinatura": "Signature", "Sem linhas. Use “Adicionar linha” ou “Colar do Excel”.": "No lines. Use “Add line” or “Paste from Excel”.", "Peso dos itens": "Items weight", "Tara contentor(es)": "Container tare", "Peso bruto": "Gross weight", "Valor total": "Total value", "sem a tara": "without tare", "Logística": "Logistics", "Transporte": "Transport", "Responsável (separe com /)": "Person in charge (separate with /)", "Observações": "Remarks", "Criar manifesto": "Create manifest", "Salvar": "Save", "Identificação": "Identification", "Dimensões e peso": "Dimensions and weight", "Comprimento (m)": "Length (m)", "Largura (m)": "Width (m)", "Altura (m)": "Height (m)", "Segurança e certificação": "Safety and certification", "Vencimento (eslinga / certificado)": "Expiry (sling / certificate)", "Temperatura": "Temperature", "Requer guindaste": "Needs crane", "Leva caixa térmica": "Has cool box", "Nº ONU": "UN no.", "Classe de risco": "Hazard class", "Conferência": "Check", "Conferido a bordo": "Checked on board", "Salvar contentor": "Save container", "Remover contentor": "Remove container", "A TAG é padronizada ao salvar (ex.: gran-ct-003 → GRAN CT 003).": "The TAG is standardized on save (e.g. gran-ct-003 → GRAN CT 003).", "Nova linha": "New line", "Peso unit (kg, mín. 1)": "Unit weight (kg, min. 1)", "Contentor": "Container", "Controlado (Portaria 344)": "Controlled (Portaria 344)", "Refrigerado": "Refrigerated", "Divergência no recebimento": "Discrepancy on receipt", "Salvar linha": "Save line", "Excluir linha": "Delete line", "Peso total abaixo de qtd × peso unit = item leve (sem alerta).": "Total weight below qty × unit weight = light item (no alert).", "automático": "automatic", "vazio = sem divergência": "empty = no discrepancy", "código ou SERVICE": "code or SERVICE", "N/A para cesta aberta": "N/A for open basket", "Recebido por (nome)": "Received by (name)", "Marcar todas": "Select all", "Assinar recebimento": "Sign receipt", "Situação": "Status", "pendente": "pending", "Linhas com divergência: escreva o problema ao lado (faltou, avaria, quantidade diferente).": "Lines with discrepancies: write the problem next to them (missing, damage, different quantity).", "Colar linhas do Excel": "Paste lines from Excel", "Cole aqui (Ctrl+V)": "Paste here (Ctrl+V)", "Adicionar linhas": "Add lines", "TAG do contentor": "Container TAG", "Gravar manifesto": "Save manifest", "Confira os alertas antes de gravar; dá para corrigir depois.": "Check the alerts before saving; you can fix them later.", "Nenhuma linha de MATERIAIS encontrada na planilha.": "No MATERIALS lines found in the spreadsheet.", "Motivo (obrigatório)": "Reason (required)", "Cancelar manifesto": "Cancel manifest", "Excluir": "Delete", "O rascunho some da lista. Manifestos emitidos não podem ser excluídos, só cancelados.": "The draft disappears from the list. Issued manifests cannot be deleted, only cancelled.", "Administrador": "Administrator", "Usuário GC": "GC user", "Usuário · sem acesso aos manifestos": "User · no access to manifests", "Aguardando aprovação": "Awaiting approval", "Acesso recusado": "Access denied", "Visitante · sem acesso aos manifestos": "Visitor · no access to manifests", "Modo local · este navegador": "Local mode · this browser", "Seu cadastro aguarda a aprovação de um administrador.": "Your account is waiting for an administrator's approval.", "Seu acesso foi recusado.": "Your access was declined.", "Os Cargo Manifestos são restritos a Usuários GC e Administradores. Peça o acesso a um administrador.": "Cargo Manifests are restricted to GC users and Administrators. Ask an administrator for access.", "Os Cargo Manifestos são restritos a Usuários GC e Administradores. Entre com a mesma conta do Deck Cargo Plan.": "Cargo Manifests are restricted to GC users and Administrators. Sign in with the same Deck Cargo Plan account.", "E-mail": "Email", "Senha": "Password", "Mesma conta do Deck Cargo Plan. Para criar conta ou trocar a senha, use o": "Same account as the Deck Cargo Plan. To create an account or change the password, use the", "Você saiu.": "You signed out.", "Entre com uma conta aprovada para criar manifestos.": "Sign in with an approved account to create manifests.", "Sem permissão para gravar.": "No permission to save.", "Informe quem recebeu.": "Enter who received it.", "Fechar": "Close", "Buscar": "Search", "Buscar TAG": "Search TAG", "Filtro": "Filter", "Selecionar todas": "Select all", "Essa TAG já está neste manifesto.": "This TAG is already in this manifest.", "Carga perigosa exige nº ONU e classe de risco.": "Dangerous goods require UN no. and hazard class.", "Código no formato NNN-AAAA (ex.: 047-2026).": "Code in the format NNN-YYYY (e.g. 047-2026).", "Já existe um manifesto com esse código.": "A manifest with this code already exists.", "Eslinga, vencimento e medidas copiados do Deck.": "Sling, expiry and dimensions copied from the Deck.", "Peso unit": "Unit weight", "Peso total": "Total weight", "Custo linha": "Line cost", "Depto": "Dept", "CONFERIDO": "CHECKED", "fora de bordo": "off board", "A BORDO": "ON BOARD", "local atual": "current location", "PR": "PR", "PO": "PO", "#": "#"},no:{"Outro local (digite)": "Annet sted (skriv)", "OUTRO LOCAL…": "ANNET STED…", "NOME DO LOCAL": "STEDSNAVN", "Informe o local de destino (Para).": "Oppgi destinasjon (Til).","Carregando dados…": "Laster data…", "Verificando acesso…": "Sjekker tilgang…", "Entrar": "Logg inn", "Sair": "Logg ut", "Manifestos abertos": "Åpne manifester", "Linhas a receber": "Linjer å motta", "Peso em aberto": "Åpen vekt", "Valor em aberto": "Åpen verdi", "Alertas": "Varsler", "Manifestos": "Manifester", "Rastreio por TAG": "Sporing per TAG", "Abertos": "Åpne", "Encerrados": "Lukket", "Todos": "Alle", "Buscar código, TAG, PR, PO, item SAP, material…": "Søk kode, TAG, PR, PO, SAP-vare, materiale…", "Novo manifesto": "Nytt manifest", "Importar Excel": "Importer Excel", "Carregar 047-2026": "Last inn 047-2026", "Código": "Kode", "Data": "Dato", "Sentido": "Retning", "De → Para": "Fra → Til", "Linhas": "Linjer", "Recebidas": "Mottatt", "Peso (kg)": "Vekt (kg)", "Valor (R$)": "Verdi (R$)", "Status": "Status", "Carregando…": "Laster…", "Nenhum manifesto neste filtro.": "Ingen manifester i dette filteret.", "Nenhum manifesto ainda. Use “Novo manifesto”, “Importar Excel” ou “Carregar 047-2026”.": "Ingen manifester ennå. Bruk «Nytt manifest», «Importer Excel» eller «Last inn 047-2026».", "Acesso restrito a Usuários GC e Administradores.": "Tilgang kun for GC-brukere og administratorer.", "Manifestos, mudanças de status e situação no Deck Cargo Plan": "Manifester, statusendringer og status i Deck Cargo Plan", "TAG (ex.: GRAN CT 003)": "TAG (f.eks. GRAN CT 003)", "Digite uma TAG para ver a linha do tempo.": "Skriv en TAG for å se tidslinjen.", "Sem manifestos com essa TAG.": "Ingen manifester med denne TAG-en.", "Abrir no Deck": "Åpne i Deck", "← Manifestos": "← Manifester", "Editar cabeçalho": "Rediger topp", "Imprimir / PDF": "Skriv ut / PDF", "Exportar Excel": "Eksporter Excel", "Cancelar": "Avbryt", "Excluir rascunho": "Slett utkast", "Emitir": "Utsted", "Em trânsito": "Under transport", "Recebido a bordo": "Mottatt om bord", "Conferir": "Kontroller", "Encerrar": "Lukk", "LOGÍSTICA": "LOGISTIKK", "TRANSPORTE": "TRANSPORT", "De": "Fra", "Para": "Til", "Responsável": "Ansvarlig", "Telefone": "Telefon", "Obs.": "Merknad", "Nota fiscal": "Faktura", "Transportadora": "Transportør", "Embalagem": "Emballasje", "Tipo": "Type", "Eslinga": "Stropp", "Tara (kg)": "Tara (kg)", "Nº SAP": "SAP-nr.", "Dimensão": "Dimensjoner", "Vencimento": "Utløp", "Selo": "Plombe", "Guindaste": "Kran", "Caixa térmica": "Kjøleboks", "Carga perigosa": "Farlig gods", "Divergência": "Avvik", "a confirmar": "bekreftes", "SIM": "JA", "NÃO": "NEI", "Editar": "Rediger", "Usar dados do Deck": "Bruk Deck-data", "Ver no Deck Cargo Plan": "Vis i Deck Cargo Plan", "No Deck Cargo Plan:": "I Deck Cargo Plan:", "Deck Cargo Plan:": "Deck Cargo Plan:", "Sem pendências": "Ingen avvik", "MATERIAIS": "MATERIALER", "| RECEPTOR": "| MOTTAK", "Adicionar linha": "Legg til linje", "Colar do Excel": "Lim inn fra Excel", "Adicionar contentor": "Legg til container", "Receber linhas": "Motta linjer", "Desfazer conferência do contentor": "Angre containerkontroll", "Contentor conferido": "Container kontrollert", "PO SAP": "SAP PO", "Descrição": "Beskrivelse", "Qtd": "Ant.", "Item SAP": "SAP-vare", "Custo unit (R$)": "Enhetskost (R$)", "Custo linha (R$)": "Linjekost (R$)", "Peso unit (kg)": "Enhetsvekt (kg)", "Peso total (kg)": "Totalvekt (kg)", "Observação": "Merknad", "Departamento": "Avdeling", "Assinatura": "Signatur", "Sem linhas. Use “Adicionar linha” ou “Colar do Excel”.": "Ingen linjer. Bruk «Legg til linje» eller «Lim inn fra Excel».", "Peso dos itens": "Varevekt", "Tara contentor(es)": "Containertara", "Peso bruto": "Bruttovekt", "Valor total": "Total verdi", "sem a tara": "uten tara", "Logística": "Logistikk", "Transporte": "Transport", "Responsável (separe com /)": "Ansvarlig (skill med /)", "Observações": "Merknader", "Criar manifesto": "Opprett manifest", "Salvar": "Lagre", "Identificação": "Identifikasjon", "Dimensões e peso": "Dimensjoner og vekt", "Comprimento (m)": "Lengde (m)", "Largura (m)": "Bredde (m)", "Altura (m)": "Høyde (m)", "Segurança e certificação": "Sikkerhet og sertifisering", "Vencimento (eslinga / certificado)": "Utløp (stropp / sertifikat)", "Temperatura": "Temperatur", "Requer guindaste": "Krever kran", "Leva caixa térmica": "Har kjøleboks", "Nº ONU": "UN-nr.", "Classe de risco": "Fareklasse", "Conferência": "Kontroll", "Conferido a bordo": "Kontrollert om bord", "Salvar contentor": "Lagre container", "Remover contentor": "Fjern container", "A TAG é padronizada ao salvar (ex.: gran-ct-003 → GRAN CT 003).": "TAG-en standardiseres ved lagring (f.eks. gran-ct-003 → GRAN CT 003).", "Nova linha": "Ny linje", "Peso unit (kg, mín. 1)": "Enhetsvekt (kg, min. 1)", "Contentor": "Container", "Controlado (Portaria 344)": "Kontrollert (Portaria 344)", "Refrigerado": "Kjølt", "Divergência no recebimento": "Avvik ved mottak", "Salvar linha": "Lagre linje", "Excluir linha": "Slett linje", "Peso total abaixo de qtd × peso unit = item leve (sem alerta).": "Totalvekt under ant. × enhetsvekt = lett vare (ingen varsel).", "automático": "automatisk", "vazio = sem divergência": "tom = ingen avvik", "código ou SERVICE": "kode eller SERVICE", "N/A para cesta aberta": "N/A for åpen kurv", "Recebido por (nome)": "Mottatt av (navn)", "Marcar todas": "Velg alle", "Assinar recebimento": "Signer mottak", "Situação": "Status", "pendente": "venter", "Linhas com divergência: escreva o problema ao lado (faltou, avaria, quantidade diferente).": "Linjer med avvik: skriv problemet ved siden av (mangler, skade, annen mengde).", "Colar linhas do Excel": "Lim inn linjer fra Excel", "Cole aqui (Ctrl+V)": "Lim inn her (Ctrl+V)", "Adicionar linhas": "Legg til linjer", "TAG do contentor": "Container-TAG", "Gravar manifesto": "Lagre manifest", "Confira os alertas antes de gravar; dá para corrigir depois.": "Sjekk varslene før lagring; du kan rette senere.", "Nenhuma linha de MATERIAIS encontrada na planilha.": "Ingen MATERIALER-linjer funnet i regnearket.", "Motivo (obrigatório)": "Grunn (påkrevd)", "Cancelar manifesto": "Avbryt manifest", "Excluir": "Slett", "O rascunho some da lista. Manifestos emitidos não podem ser excluídos, só cancelados.": "Utkastet forsvinner fra listen. Utstedte manifester kan ikke slettes, bare avbrytes.", "Administrador": "Administrator", "Usuário GC": "GC-bruker", "Usuário · sem acesso aos manifestos": "Bruker · ingen tilgang til manifester", "Aguardando aprovação": "Venter på godkjenning", "Acesso recusado": "Tilgang avslått", "Visitante · sem acesso aos manifestos": "Besøkende · ingen tilgang til manifester", "Modo local · este navegador": "Lokal modus · denne nettleseren", "Seu cadastro aguarda a aprovação de um administrador.": "Kontoen din venter på godkjenning.", "Seu acesso foi recusado.": "Tilgangen din ble avslått.", "Os Cargo Manifestos são restritos a Usuários GC e Administradores. Peça o acesso a um administrador.": "Cargo Manifests er kun for GC-brukere og administratorer. Be en administrator om tilgang.", "Os Cargo Manifestos são restritos a Usuários GC e Administradores. Entre com a mesma conta do Deck Cargo Plan.": "Cargo Manifests er kun for GC-brukere og administratorer. Logg inn med samme konto som i Deck Cargo Plan.", "E-mail": "E-post", "Senha": "Passord", "Mesma conta do Deck Cargo Plan. Para criar conta ou trocar a senha, use o": "Samme konto som Deck Cargo Plan. For å opprette konto eller bytte passord, bruk", "Você saiu.": "Du er logget ut.", "Entre com uma conta aprovada para criar manifestos.": "Logg inn med en godkjent konto for å opprette manifester.", "Sem permissão para gravar.": "Ingen tillatelse til å lagre.", "Informe quem recebeu.": "Oppgi hvem som mottok.", "Fechar": "Lukk", "Buscar": "Søk", "Buscar TAG": "Søk TAG", "Filtro": "Filter", "Selecionar todas": "Velg alle", "Essa TAG já está neste manifesto.": "Denne TAG-en er allerede i dette manifestet.", "Carga perigosa exige nº ONU e classe de risco.": "Farlig gods krever UN-nr. og fareklasse.", "Código no formato NNN-AAAA (ex.: 047-2026).": "Kode i formatet NNN-ÅÅÅÅ (f.eks. 047-2026).", "Já existe um manifesto com esse código.": "Det finnes allerede et manifest med denne koden.", "Eslinga, vencimento e medidas copiados do Deck.": "Stropp, utløp og mål kopiert fra Deck.", "Peso unit": "Enhetsvekt", "Peso total": "Totalvekt", "Custo linha": "Linjekost", "Depto": "Avd.", "CONFERIDO": "KONTROLLERT", "fora de bordo": "ikke om bord", "A BORDO": "OM BORD", "local atual": "nåværende plassering"}};
+const W={"en": {"rec": "received", "pend": "Manifest pending issues", "cont": "CONTAINER", "cont2": "Container", "line": "Line", "head": "Header", "recb": "Receipt on board", "imp": "Import", "canc": "Cancel manifest", "del": "Delete draft", "nomove": "Could not change to", "nm": "manifest(s)", "db": "Deck Cargo Plan Supabase database", "br": "in this browser", "add": "Add", "lines": "line(s)", "recd": "line(s) received."}, "no": {"rec": "mottatt", "pend": "Avvik i manifestet", "cont": "CONTAINER", "cont2": "Container", "line": "Linje", "head": "Topp", "recb": "Mottak om bord", "imp": "Importer", "canc": "Avbryt manifest", "del": "Slett utkast", "nomove": "Kunne ikke endre til", "nm": "manifest(er)", "db": "Supabase-database for Deck Cargo Plan", "br": "i denne nettleseren", "add": "Legg til", "lines": "linje(r)", "recd": "linje(r) mottatt."}};
+const R=[
+ [/^(\d+) recebidas$/,(m,w)=>m[1]+" "+w.rec],[/^(.+) · (\d+)\/(\d+) recebidas$/,(m,w)=>`${m[1]} · ${m[2]}/${m[3]} ${w.rec}`],
+ [/^Pendências do manifesto \((\d+)\)$/,(m,w)=>`${w.pend} (${m[1]})`],[/^CONTENTOR ?(\d*)$/,(m,w)=>(w.cont+" "+m[1]).trim()],
+ [/^Contentor (.*)$/,(m,w)=>(w.cont2+" "+m[1]).trim()],[/^Linha (\d+)$/,(m,w)=>w.line+" "+m[1]],[/^Cabeçalho (.+)$/,(m,w)=>w.head+" "+m[1]],
+ [/^Recebimento a bordo · (.+)$/,(m,w)=>w.recb+" · "+m[1]],[/^Importar (.+)$/,(m,w)=>w.imp+" "+m[1]],[/^Cancelar manifesto (.+)$/,(m,w)=>w.canc+" "+m[1]],
+ [/^Excluir rascunho (.+)$/,(m,w)=>w.del+" "+m[1]],[/^Não foi possível mudar para (.+)$/,(m,w)=>w.nomove+" "+m[1]],
+ [/^(\d+) manifesto\(s\) · banco Supabase do Deck Cargo Plan$/,(m,w)=>`${m[1]} ${w.nm} · ${w.db}`],[/^(\d+) manifesto\(s\) neste navegador$/,(m,w)=>`${m[1]} ${w.nm} ${w.br}`],
+ [/^Adicionar (\d+) linha\(s\)$/,(m,w)=>`${w.add} ${m[1]} ${w.lines}`],[/^(\d+) linha\(s\) recebidas\.$/,(m,w)=>`${m[1]} ${w.recd}`]
+];
+const SKIP="td:not(.empty),dd,.histm,.st,.tagbig,.code b,option,textarea,script,style,.mono,#print,.pends li,.badge,.al,.deckref b,.hint.al";
+const orig=new WeakMap(),last=new WeakMap();
+let lang="pt";try{lang=localStorage.getItem("dcp-lang")||"pt"}catch(e){}
+if(!["pt","en","no"].includes(lang))lang="pt";
+function tr(s){
+  if(lang==="pt")return s;
+  const k=s.trim();if(!k)return s;const d=DICT[lang],w=W[lang];
+  let out=d[k];
+  if(out==null)for(const [re,f] of R){const m=k.match(re);if(m){out=f(m,w);break}}
+  if(out==null)return s;
+  return s.replace(k,out);
+}
+const ALL=new Set([].concat(...Object.values(DICT).map(o=>Object.values(o))));
+function doText(n){
+  const pe=n.parentElement;if(pe&&!pe.closest("button")&&pe.closest(SKIP))return;
+  const cur=n.nodeValue;
+  if(!last.has(n)||last.get(n)!==cur)orig.set(n,cur);
+  const want=tr(orig.get(n));
+  if(want!==cur)n.nodeValue=want;
+  last.set(n,want);
+}
+function doAttrs(el){
+  for(const a of ["placeholder","aria-label","title"]){
+    if(!el.hasAttribute||!el.hasAttribute(a)||el.closest(".lang"))continue;
+    const key="data-pt-"+a,cur=el.getAttribute(a);
+    if(!el.hasAttribute(key)||!ALL.has(cur))el.setAttribute(key,cur);
+    const pt=el.getAttribute(key);const want=lang==="pt"?pt:(DICT[lang][pt]||pt);
+    if(want!==cur)el.setAttribute(a,want);
+  }
+}
+function walk(root){
+  if(root.nodeType===3){doText(root);return}
+  if(root.nodeType!==1||root.closest&&root.closest(".lang"))return;
+  doAttrs(root);
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT,{acceptNode:n=>n.nodeType===1&&n.classList&&n.classList.contains("lang")?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  let n;while((n=w.nextNode())){if(n.nodeType===3)doText(n);else doAttrs(n)}
+}
+let busy=false;
+const mo=new MutationObserver(ms=>{if(busy)return;busy=true;try{for(const m of ms){if(m.type==="characterData")doText(m.target);else m.addedNodes.forEach(walk)}}finally{busy=false}});
+function setLang(l){
+  lang=l;try{localStorage.setItem("dcp-lang",l)}catch(e){}
+  document.documentElement.lang=l==="en"?"en":l==="no"?"nb":"pt-BR";
+  document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===l));
+  busy=true;try{walk(document.body)}finally{busy=false}
+}
+const FLAG_BR='<svg viewBox="0 0 20 14" aria-hidden="true"><rect width="20" height="14" fill="#009c3b"/><path d="M10 1.6 18.2 7 10 12.4 1.8 7z" fill="#ffdf00"/><circle cx="10" cy="7" r="3.1" fill="#002776"/><path d="M7 6.3c2-.5 4.2-.3 6 .7" stroke="#fff" stroke-width=".55" fill="none"/></svg>';
+const FLAG_EN='<svg viewBox="0 0 60 42" aria-hidden="true"><rect width="60" height="42" fill="#012169"/><path d="M0 0 60 42M60 0 0 42" stroke="#fff" stroke-width="8"/><path d="M0 0 60 42M60 0 0 42" stroke="#C8102E" stroke-width="3"/><path d="M30 0v42M0 21h60" stroke="#fff" stroke-width="12"/><path d="M30 0v42M0 21h60" stroke="#C8102E" stroke-width="7"/></svg>';
+const FLAG_NO='<svg viewBox="0 0 22 16" aria-hidden="true"><rect width="22" height="16" fill="#BA0C2F"/><path d="M6 0v16M0 8h22" stroke="#fff" stroke-width="4"/><path d="M6 0v16M0 8h22" stroke="#00205B" stroke-width="2"/></svg>';
+const box=document.createElement("div");box.className="lang";box.setAttribute("role","group");box.setAttribute("aria-label","Idioma / Language / Språk");
+box.innerHTML=`<button type="button" data-lang="pt" aria-pressed="false" title="Português (Brasil)">${FLAG_BR}<span>PT-BR</span></button><button type="button" data-lang="en" aria-pressed="false" title="English">${FLAG_EN}<span>EN</span></button><button type="button" data-lang="no" aria-pressed="false" title="Norsk">${FLAG_NO}<span>NO</span></button>`;
+const top=document.querySelector(".top");top.insertBefore(box,top.firstChild);
+box.addEventListener("click",e=>{const b=e.target.closest("button[data-lang]");if(b){setLang(b.dataset.lang);if(typeof paintT==="function")paintT()}});
+/* tema claro / escuro */
+const SUN='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+const MOON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+const RT=document.documentElement;const sysDark=()=>matchMedia("(prefers-color-scheme: dark)").matches;
+const curDark=()=>{const t=RT.getAttribute("data-theme");return t?t==="dark":sysDark()};
+const tb=document.createElement("button");tb.type="button";tb.className="themebtn";
+const paintT=()=>{const d=curDark();let lg="pt";try{lg=localStorage.getItem("dcp-lang")||"pt"}catch(e){}const LB={pt:["Claro","Escuro"],en:["Light","Dark"],no:["Lys","Mørk"]}[lg]||["Claro","Escuro"];tb.innerHTML=(d?SUN:MOON)+`<span>${d?LB[0]:LB[1]}</span>`;tb.title=d?"Mudar para fundo claro · Light mode · Lys modus":"Mudar para fundo escuro · Dark mode · Mørk modus";tb.setAttribute("aria-label",tb.title)};
+try{const sv=localStorage.getItem("dcp-theme");if(sv==="light"||sv==="dark")RT.setAttribute("data-theme",sv)}catch(e){}
+tb.addEventListener("click",()=>{const n=curDark()?"light":"dark";RT.setAttribute("data-theme",n);try{localStorage.setItem("dcp-theme",n)}catch(e){}paintT()});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(!RT.getAttribute("data-theme"))paintT()});
+box.insertBefore(tb,box.firstChild);paintT();
+mo.observe(document.body,{subtree:true,childList:true,characterData:true});
+setLang(lang);
+})();
+
 </script>
 </body>
 </html>

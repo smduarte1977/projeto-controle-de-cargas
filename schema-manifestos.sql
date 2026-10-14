@@ -1,7 +1,7 @@
 -- Projeto de Controle de Cargas — tabela de Cargo Manifestos (manifestos.html)
 -- Rode UMA vez no Supabase: SQL Editor → New query → cole tudo → Run.
 -- Mesmo formato das tabelas "cargas" e "meta" (id texto + data jsonb) e os mesmos perfis do Deck Cargo Plan.
--- Diferença: manifestos têm custos (R$), então só usuários APROVADOS leem. Visitantes sem login não veem nada.
+-- Diferença: manifestos têm custos (R$), então só USUÁRIOS GC e ADMINISTRADORES leem. Os demais não veem nada.
 
 create table if not exists public.manifestos (
   id            text primary key,                 -- ex.: m-047-2026
@@ -21,11 +21,11 @@ create index if not exists manifestos_data_gin   on public.manifestos using gin 
 
 alter table public.manifestos enable row level security;
 
--- "aprovado" = mesma regra do site: tem perfil e o status não é pendente nem recusado
+-- Cargo Manifestos: só USUÁRIO GC e ADMINISTRADOR aprovados (papéis do arquivo supabase/papeis_gc.sql)
 create or replace function public.manifestos_aprovado() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.perfis p
-                 where p.id = auth.uid() and coalesce(p.status,'pendente') not in ('pendente','recusado'));
+                 where p.id = auth.uid() and p.status = 'aprovado' and p.papel in ('usuario_gc','admin'));
 $$;
 create or replace function public.manifestos_admin() returns boolean
 language sql stable security definer set search_path = public as $$
