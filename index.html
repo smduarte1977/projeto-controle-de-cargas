@@ -281,6 +281,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
     <button class="tab" role="tab" id="t-deck" aria-selected="false" data-tab="deck">Visualizar deck</button>
     <span class="updnote" id="updnote" hidden></span>
     <button class="btn printbtn" id="b-report" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6M7 17H4v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6h-3M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Imprimir relatório</button>
+    <a class="btn" href="manifestos.html" style="align-self:center;text-decoration:none" title="Controle de Cargo Manifestos">Cargo Manifestos</a>
   </nav>
 
   <section class="panel" id="p-controle">
@@ -1241,6 +1242,8 @@ document.querySelectorAll("[data-grp]").forEach(b=>b.onclick=()=>{const g=b.data
 $("#grp-x").onclick=()=>{setGrp(null);renderRows()};
 document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.f;if(state.filter!=="bordo")setGrp(null);document.querySelectorAll("[data-f]").forEach(x=>x.setAttribute("aria-pressed",x===b));renderRows()});
 let qt;$("#q").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{state.q=e.target.value;renderRows()},150)});
+/* vindo de manifestos.html: index.html?tag=GRAN%20CT%20003 abre a busca dessa TAG em "Todas" */
+try{const tg=new URLSearchParams(location.search).get("tag");if(tg){const ch=document.querySelector('.chip[data-f="todas"]');if(ch)ch.click();const qi=$("#q");qi.value=tg;state.q=tg;renderRows()}}catch(e){}
 $("#qh").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{state.qh=e.target.value;renderHist()},150)});
 
 function render(){renderKpis();if(state.tab==="controle")renderRows();else if(state.tab==="historico")renderHist();else drawDeck()}

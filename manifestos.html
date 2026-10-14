@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Projeto de Controle de Cargas — Sayan Polaris: controle de cargo manifestos.">
+<title>Cargo Manifestos · Sayan Polaris</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Mesmo visual do Deck Cargo Plan (index.html): tokens, topo, abas, tabelas, formulários e modal são copiados de lá. */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#14212e; --muted:#5b6b7a; --line:#d3dbe3; --line-2:#e6ebf0;
+  --accent:#0f5c8c; --accent-ink:#ffffff; --signal:#c2410c; --ok:#1f7a4d; --warn:#b45309;
+  --deck:#f7f9fb; --deck-grid:#dfe5ec; --deck-bay:#9aa9b8; --deck-edge:#4a5a6a;
+  --beige:#ddd9c4; --orange:#ffc000; --yellow:#fff27a; --gc:#ffff00;
+  --row-hover:#f3f6f9; --shadow:0 1px 2px rgba(20,33,46,.06),0 4px 16px rgba(20,33,46,.06);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1620; --panel:#15212d; --ink:#e6edf3; --muted:#93a4b4; --line:#2a3a4a; --line-2:#203040;
+  --accent:#4fa3d9; --accent-ink:#06121c; --signal:#f97316; --ok:#4ade80; --warn:#fbbf24;
+  --deck:#101c27; --deck-grid:#1f2f3e; --deck-bay:#5d7286; --deck-edge:#8aa0b4;
+  --beige:#4a4636; --orange:#b88a00; --yellow:#6b6420; --gc:#8a8600; --row-hover:#1b2938; --shadow:0 1px 2px rgba(0,0,0,.3);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1620; --panel:#15212d; --ink:#e6edf3; --muted:#93a4b4; --line:#2a3a4a; --line-2:#203040;
+  --accent:#4fa3d9; --accent-ink:#06121c; --signal:#f97316; --ok:#4ade80; --warn:#fbbf24;
+  --deck:#101c27; --deck-grid:#1f2f3e; --deck-bay:#5d7286; --deck-edge:#8aa0b4;
+  --beige:#4a4636; --orange:#b88a00; --yellow:#6b6420; --gc:#8a8600; --row-hover:#1b2938; --shadow:0 1px 2px rgba(0,0,0,.3);
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.wrap{max-width:1500px;margin:0 auto;padding-inline:16px;padding-block:16px 48px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.wrap>*{min-width:0}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:.01em;margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+/* topo */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.ship .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ship h1{font-size:clamp(28px,4vw,40px);line-height:1}
+.ship h1 span{color:var(--accent)}
+.kpis{display:flex;flex-wrap:wrap;gap:8px}
+.lang{display:flex;gap:4px;width:100%;justify-content:flex-end;order:-1}
+.lang button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 10px 4px 6px;font-family:var(--f-mono);font-size:11.5px;font-weight:600;color:var(--muted)}
+.lang button svg{width:22px;height:15px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.lang .themebtn{margin-right:8px;padding:4px 10px;color:var(--ink)}
+.lang .themebtn svg{width:16px;height:16px;box-shadow:none;border-radius:0}
+.lang button[aria-pressed="true"]{border-color:var(--accent);color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent)}
+
+.access{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.role{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;background:var(--line-2);color:var(--muted)}
+.role.owner{background:var(--accent);color:var(--accent-ink)}
+.role.editor{background:var(--ok);color:#fff}
+.btn.small{padding:3px 10px;font-size:12px}
+.roles{display:grid;gap:10px;padding:16px}
+.roles .r{display:grid;grid-template-columns:140px 1fr;gap:4px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:6px}
+.roles .r b{font-family:var(--f-display);font-size:17px}
+.editinfo{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;min-width:120px}
+.kpi b{display:block;font-family:var(--f-display);font-size:26px;line-height:1.05;font-weight:600}
+.kpi.kbtn{font:inherit;color:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;transition:border-color .15s,box-shadow .15s}
+.kpi.kbtn:hover{border-color:var(--accent)}
+.kpi.kbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kpi.kbtn[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+.grpb{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:3px 6px 3px 10px;font-size:12px;font-weight:600;background:transparent;cursor:pointer}
+.grpb[hidden]{display:none}
+.kpi small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.meter{height:5px;background:var(--line-2);border-radius:3px;margin-top:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+.meter i.over{background:var(--warn,#c0392b)}
+.kpct{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.kpi.pend b{color:var(--warn)}
+.kpimix{display:flex;gap:14px;align-items:center}
+.kpimix .mix{list-style:none;margin:0;padding:0 0 0 16px;border-left:1px solid var(--line);display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:14px;align-items:center}
+.kpimix .mix li{display:contents}
+.kpimix .mix span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.kpimix .mix i{width:13px;height:13px;border-radius:2px;border:1px solid rgba(0,0,0,.25);flex:none}
+.kpimix .mix em{font-style:normal;font-weight:700;font-family:var(--f-display);font-size:22px;line-height:1.1;text-align:right}
+.kpimix small{font-size:13px}
+.kpimix b{font-size:40px}
+
+/* abas */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{border:0;background:none;padding:10px 14px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.printbtn{margin-left:auto;align-self:center;display:inline-flex;align-items:center;gap:6px}
+.printbtn svg{width:16px;height:16px}
+.msel{position:relative}
+.msbtn{display:inline-flex;align-items:center;gap:8px;width:auto;min-width:150px;justify-content:space-between;cursor:pointer;text-align:left}
+.msbtn svg{width:12px;height:12px;flex:none}
+.mspop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;min-width:240px;max-height:340px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px;color:var(--ink,inherit);font-size:13px;text-transform:none;letter-spacing:0}
+.mspop label{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;cursor:pointer}
+.mspop label:hover{background:var(--row-hover,rgba(0,0,0,.05))}
+.mspop label em{margin-left:auto;font-style:normal;color:var(--muted);font-size:12px}
+.mspop .mstop{display:flex;gap:6px;padding:4px 4px 8px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.mspop .mstop button{font-size:12px;padding:4px 8px}
+th.selc,td.selc{width:30px;min-width:30px;max-width:30px;text-align:center;padding-left:4px;padding-right:4px}
+td.selc input,th.selc input{width:16px;height:16px;margin:0;cursor:pointer;accent-color:var(--accent)}
+tr.proxr td.selc{box-shadow:inset 4px 0 0 var(--accent)}
+.pxb{display:block;margin-top:3px;font-family:var(--f-mono);font-size:11px;font-weight:600;color:var(--accent);white-space:nowrap}
+td.acts{white-space:nowrap}td.acts .rowbtn+.rowbtn{margin-left:4px}
+.rowbtn.ok{border-color:#2e8b57;color:#2e8b57}.rowbtn.no{border-color:#b03a2e;color:#b03a2e}
+.selbar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 16px 10px;padding:8px 12px;border:1px solid var(--accent);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)}
+.selbar>span:first-child{margin-right:auto}
+.hhmm{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-right:4px}
+.danger{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;padding-top:12px;border-top:1px dashed var(--line)}
+.danger .hint{margin-right:auto}
+.btn.dangerbtn{border-color:#b03a2e;color:#b03a2e}
+.btn.dangerbtn.solid{background:#b03a2e;color:#fff}
+.rh{margin:14px 0 6px;font-size:13px;display:flex;align-items:center;gap:10px;justify-content:space-between}.rcbt{display:flex;gap:6px}.rcols{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px 10px}.rcols label{display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer;padding:3px 0}.rcols input,.rori input{margin:0;accent-color:var(--accent,#1d6fb8)}.rori{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-top:10px;font-size:14px}.rori label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.ropts{display:grid;gap:8px;margin-top:10px}.ropts label{display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer;padding:8px 10px;border:1px solid var(--line);border-radius:6px}.ropts input{margin:0;accent-color:var(--accent,#1d6fb8)}
+.updnote{align-self:center;margin-left:8px;font-family:var(--f-mono);font-size:12px;color:var(--muted);padding:4px 10px;border:1px dashed var(--line);border-radius:4px;background:var(--panel)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+.pad{padding:16px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+.bar .group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{border:1px solid var(--line);background:var(--panel);padding:5px 10px;border-radius:999px;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn{border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:6px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.on{background:var(--signal);border-color:var(--signal);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.search{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 10px;min-width:0;width:220px;max-width:100%}
+
+/* tabela */
+.tablewrap{overflow:auto;max-height:70vh}
+table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:12.5px}
+thead th{position:sticky;top:0;z-index:2;background:#14304a;color:#fff;font-family:var(--f-display);font-size:14px;font-weight:600;letter-spacing:.03em;text-align:left;padding:8px;white-space:nowrap;border-right:1px solid rgba(255,255,255,.12)}
+tbody td{padding:6px 8px;border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);vertical-align:top;white-space:nowrap}
+tbody tr:hover td{background:var(--row-hover)}
+thead th .rz{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;z-index:3;touch-action:none}
+thead th .rz::after{content:"";position:absolute;top:20%;bottom:20%;left:3px;width:2px;border-radius:1px;background:rgba(255,255,255,.25)}
+thead th .rz:hover::after,thead th .rz.on::after{background:#7cc4ff}
+body.rzing{cursor:col-resize;user-select:none}
+#ctl.fixw td,#ctl.fixw th{overflow:hidden;text-overflow:ellipsis}
+td.hist{white-space:pre-line;min-width:260px;font-family:var(--f-mono);font-size:11.5px;line-height:1.35}
+td.num{text-align:right;font-family:var(--f-mono)}
+td.tag{font-family:var(--f-mono);font-weight:600}
+/* coluna TAG (e a seleção) sempre visível ao rolar para o lado, como o cabeçalho */
+:where(#ctl) td.selc{position:sticky;left:0;z-index:1;background:var(--panel)}
+:where(#ctl) td.tag{position:sticky;left:30px;z-index:1;background:var(--panel);box-shadow:inset -2px 0 0 var(--line)}
+#ctl thead th.selc{position:sticky;left:0;z-index:4}
+#ctl thead th:nth-child(2){position:sticky;left:30px;z-index:4;box-shadow:inset -2px 0 0 rgba(255,255,255,.35)}
+tr.last td{background:var(--beige)}
+tr.frat td{background:var(--orange);color:#1b1300}
+tr.amar td{background:var(--yellow)}
+tr.gc td{background:var(--gc);color:#1b1a00}
+tr.fora td.tag{color:var(--signal)}
+td.venc-x,tbody tr:hover td.venc-x{background:#c00000!important;color:#fff!important}
+td.venc-a,tbody tr:hover td.venc-a{background:#ffe600!important;color:#c00000!important}
+tr.gc td.venc-a,tr.amar td.venc-a,tr.gc:hover td.venc-a,tr.amar:hover td.venc-a{background:#ff8c00!important;color:#c00000!important}
+/* rotação finalizada: todas as colunas na cor do TAG */
+tr.rotf td,tr.rotf td .pxb{color:var(--signal)}
+tr.pend td.tag::after{content:"●";color:var(--warn);margin-left:6px;font-size:10px;vertical-align:middle}
+.qtd1{display:inline-block;min-width:20px;text-align:center;background:var(--ok);color:#fff;border-radius:3px;font-weight:600}
+.rowbtn{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:2px 8px;font-size:12px}
+.empty{padding:32px 16px;text-align:center;color:var(--muted)}
+
+/* formulário */
+details.add{border-top:1px solid var(--line)}
+details.add summary{cursor:pointer;padding:12px 16px;font-family:var(--f-display);font-size:18px;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+details.add summary::before{content:"+";display:inline-grid;place-items:center;width:22px;height:22px;border-radius:4px;background:var(--accent);color:var(--accent-ink);font-family:var(--f-mono)}
+details.add[open] summary::before{content:"–"}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 12px;padding:0 16px 16px}
+.form label{display:grid;gap:3px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);min-width:0}
+.form input,.form select,.form textarea{border:1px solid var(--line);border-radius:5px;background:var(--bg);padding:6px 8px;font-size:13.5px;text-transform:none;letter-spacing:0;color:var(--ink);min-width:0;width:100%}
+.form input:not([type=email]):not([type=password]):not([type=date]):not([type=number]),.form textarea{text-transform:uppercase!important}#mv-u,#d-tag{text-transform:uppercase}#f-criar input,#f-login input,#f-senha input,#f-ns input{text-transform:none!important}
+.form textarea{min-height:64px;font-family:var(--f-mono);font-size:12px}
+.form .wide{grid-column:1/-1}
+.form .actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hint{font-size:12px;color:var(--muted)}
+
+/* histórico */
+.timeline{display:grid;gap:14px;padding:16px}
+.day h3{font-size:18px;display:flex;gap:10px;align-items:baseline}
+.day h3 small{font-family:var(--f-body);font-size:12px;color:var(--muted);font-weight:400}
+.ev{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line-2)}
+.pill{font-family:var(--f-mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px;text-align:center;min-width:64px}
+.pill.on{background:var(--ok);color:#fff}
+.pill.off{background:var(--signal);color:#fff}
+.pill.mv{background:var(--line);color:var(--ink)}
+.ev .t{font-family:var(--f-mono);font-weight:600}
+
+/* menu e modal */
+.ctx{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow);padding:4px;min-width:200px}
+.ctx button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:4px}
+.ctx button:hover{background:var(--row-hover)}
+.ctx .ttl{padding:6px 10px;font-family:var(--f-mono);font-weight:600;font-size:12px;border-bottom:1px solid var(--line-2);margin-bottom:4px}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(10,20,30,.45);display:grid;place-items:center;padding:16px}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:min(760px,100%);max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
+.modal header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.modal header h2{font-size:22px}
+.x{border:0;background:none;font-size:22px;line-height:1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;z-index:70;font-size:13px}
+.notice{padding:10px 16px;font-size:13px;background:var(--line-2);border-bottom:1px solid var(--line)}
+@media (min-width:1000px){.top .ship{flex:1 1 360px;min-width:0}.top .kpis{flex:0 0 auto;justify-content:flex-end}.top .kpi{min-width:104px}}
+@media (max-width:640px){.kpi{min-width:0;flex:1 1 40%}.kpi.kpimix{flex:1 1 100%}.search{width:100%}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- específicos dos manifestos ---------- */
+.navlink{align-self:center;margin-left:auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--line);padding:6px 12px;border-radius:6px;background:var(--panel)}
+.navlink:hover{border-color:var(--accent)}
+.st{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;padding:2px 8px;border-radius:3px;white-space:nowrap;background:var(--line);color:var(--ink)}
+.st.s-RASCUNHO{background:var(--line-2);color:var(--muted)}
+.st.s-EMITIDO{background:#dbeafe;color:#1e3a8a}
+.st.s-EM-TRANSITO{background:#e0e7ff;color:#3730a3}
+.st.s-RECEBIDO-A-BORDO{background:#cffafe;color:#155e75}
+.st.s-COM-DIVERGENCIA{background:var(--yellow);color:#7c2d12}
+.st.s-CONFERIDO{background:#dcfce7;color:#14532d}
+.st.s-ENCERRADO{background:var(--ok);color:#fff}
+.st.s-CANCELADO{background:#b03a2e;color:#fff}
+:root[data-theme="dark"] .st:not(.s-ENCERRADO):not(.s-CANCELADO){filter:brightness(.85)}
+.badge{display:inline-block;font-family:var(--f-mono);font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle}
+.b-ctl{background:#7c3aed;color:#fff}.b-frio{background:#0284c7;color:#fff}.b-leve{background:var(--line);color:var(--ink)}
+.al{color:var(--warn);font-weight:700}
+tr.alerta td{background:var(--yellow)}
+tr.alerta:hover td{background:var(--yellow)}
+tr.rec td.rc{color:var(--ok);font-weight:600}
+tbody td.wrapc{white-space:normal;min-width:260px}
+.mhead{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+.code{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.code small{display:grid;place-items:center;background:var(--line-2);padding:4px 10px;font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.06em;line-height:1.1;text-align:center}
+.code b{padding:4px 16px;font-family:var(--f-display);font-size:28px;font-weight:600;align-self:center}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.blocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;padding:12px 16px}
+.blk{border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.blk h3{background:#ffd8a8;color:#3b2200;font-size:15px;text-align:center;padding:4px 8px;display:flex;align-items:center;justify-content:center;gap:8px}
+:root[data-theme="dark"] .blk h3{background:#5c3d10;color:#ffe7c2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .blk h3{background:#5c3d10;color:#ffe7c2}}
+.blk h3 .rowbtn{font-family:var(--f-body);font-size:11px;font-weight:500}
+.blk dl{display:grid;grid-template-columns:max-content minmax(0,1fr);margin:0}
+.blk dt,.blk dd{padding:5px 10px;border-bottom:1px solid var(--line-2);margin:0}
+.blk dt{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:right;border-right:1px solid var(--line-2)}
+.blk dd{font-weight:600;overflow-wrap:anywhere}
+.blk dd.vazio{color:var(--signal);font-weight:500;font-style:italic}
+.blk dd.venc-x{background:#c00000;color:#fff}.blk dd.venc-a{background:#ffe600;color:#c00000}
+.tagbig{font-family:var(--f-mono);font-size:18px;font-weight:700;color:var(--accent)}
+.deckref{margin:0 16px 12px;padding:8px 12px;border:1px dashed var(--line);border-radius:6px;font-size:12.5px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.deckref.ok{border-color:var(--ok)}
+.tot{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+.tot .kpi{min-width:140px}
+.pends{margin:0 16px 16px;border:1px solid var(--warn);border-radius:6px;padding:10px 12px;background:color-mix(in srgb,var(--yellow) 35%,var(--panel))}
+.pends h3{font-size:16px;margin-bottom:4px}
+.pends ul{margin:0;padding-left:18px}
+.pends li{margin:2px 0}
+.pends.okp{border-color:var(--ok);background:transparent}
+.histm{margin:0 16px 16px;font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:pre-line}
+.paste{width:100%;min-height:180px;font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:8px;color:var(--ink)}
+.prev{max-height:45vh;overflow:auto;border:1px solid var(--line);border-radius:6px;margin:10px 0}
+.prev table{font-size:11.5px}
+.mlink{font-family:var(--f-mono);font-weight:600;color:var(--accent);background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:2px}
+.modal .box.wide{width:min(1100px,100%)}
+.modal .box .form{padding-top:16px}
+.form fieldset{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 12px;border:1px solid var(--line-2);border-radius:6px;padding:10px 12px;margin:0}
+.form legend{font-family:var(--f-display);font-size:15px;font-weight:600;padding:0 6px;color:var(--ink)}
+.form label.ck{display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)}
+.form label.ck input{width:auto}
+.errbox{grid-column:1/-1;color:#b03a2e;font-size:13px;font-weight:600}
+.localbar{padding:10px 16px;font-size:13px;background:var(--yellow);color:#3b2200;border-bottom:1px solid var(--line)}
+.tlm{display:grid;gap:8px;padding:16px}
+.tlm .ev{grid-template-columns:150px auto 1fr}
+#print{display:none}
+@media (max-width:640px){.code b{font-size:22px}.blk dt{text-align:left}}
+
+/* ---------- impressão: mesmo layout do formulário de manifesto ---------- */
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  body{background:#fff;color:#000;font-size:9px}
+  .wrap,.modal,.toast,.ctx{display:none!important}
+  #print{display:block}
+  #print table{width:100%;border-collapse:collapse;font-size:8.5px;min-width:0}
+  #print th,#print td{border:1px solid #000;padding:2px 3px;white-space:normal;position:static;color:#000;background:#fff;font-family:Arial,sans-serif;font-size:8.5px}
+  #print .hd th{background:#ffd8a8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #print .mt th{background:#ff9933!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #print .lb{font-weight:700;text-align:right;width:12%}
+  #print .codecell{font-size:16px;font-weight:600;text-align:center}
+  #print .c{text-align:center}#print .r{text-align:right}
+  #print .sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:28px;font-family:Arial,sans-serif}
+  #print .sig div{border-top:1px solid #000;padding-top:3px;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="ship">
+      <div class="eyebrow">MPSV · Cargo manifestos · Granenergia</div>
+      <h1>Sayan Polaris <span>Cargo Manifestos</span></h1>
+      <div class="hint" id="baseinfo">Carregando dados…</div>
+      <div class="access"><span class="role" id="role">Verificando acesso…</span><button class="btn small" id="b-login" type="button">Entrar</button><button class="btn small" id="b-theme" type="button" title="Alternar tema claro/escuro">Tema</button></div>
+    </div>
+    <div class="kpis" aria-live="polite">
+      <div class="kpi"><small>Manifestos abertos</small><b id="k-ab">–</b></div>
+      <div class="kpi"><small>Linhas a receber</small><b id="k-rec">–</b></div>
+      <div class="kpi"><small>Peso em aberto</small><b id="k-peso">–</b></div>
+      <div class="kpi"><small>Valor em aberto</small><b id="k-val">–</b></div>
+      <div class="kpi pend"><small>Alertas</small><b id="k-al">–</b></div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="lista">Manifestos</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="rastreio">Rastreio por TAG</button>
+    <a class="navlink" href="index.html">Deck Cargo Plan ↗</a>
+  </nav>
+
+  <div class="localbar" id="localbar" hidden style="border-radius:8px;border:1px solid var(--line)"></div>
+
+  <section class="panel" id="p-lista">
+    <div class="notice" id="ro" hidden></div>
+    <div class="bar">
+      <div class="group" role="group" aria-label="Filtro">
+        <button class="chip" data-f="abertos" aria-pressed="true">Abertos</button>
+        <button class="chip" data-f="encerrados" aria-pressed="false">Encerrados</button>
+        <button class="chip" data-f="todos" aria-pressed="false">Todos</button>
+      </div>
+      <div class="group">
+        <input class="search" id="q" type="search" placeholder="Buscar código, TAG, PR, PO, item SAP, material…" aria-label="Buscar" style="width:320px">
+        <button class="btn primary" id="b-novo" type="button">Novo manifesto</button>
+        <button class="btn" id="b-imp" type="button">Importar Excel</button>
+        <input type="file" id="f-imp" accept=".xlsx,.xlsm,.xls" hidden>
+        <button class="btn" id="b-exemplo" type="button" hidden>Carregar 047-2026</button>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Código</th><th>Data</th><th>Sentido</th><th>De → Para</th><th>TAG(s)</th><th>Linhas</th><th>Recebidas</th><th>Peso (kg)</th><th>Valor (R$)</th><th>Alertas</th><th>Status</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="11" class="empty">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="p-det" hidden></section>
+
+  <section class="panel" id="p-rastreio" hidden>
+    <div class="bar">
+      <div><h2 style="font-size:20px;margin:0">Rastreio por TAG</h2><div class="hint">Manifestos, mudanças de status e situação no Deck Cargo Plan</div></div>
+      <input class="search" id="qt" type="search" placeholder="TAG (ex.: GRAN CT 003)" aria-label="Buscar TAG" style="min-width:280px">
+    </div>
+    <div id="rastro"><div class="empty">Digite uma TAG para ver a linha do tempo.</div></div>
+  </section>
+</div>
+
+<div class="modal" id="modal" hidden><div class="box" id="m-box" role="dialog" aria-modal="true" aria-labelledby="m-title">
+  <header><h2 id="m-title"></h2><button class="x" id="m-close" aria-label="Fechar">×</button></header>
+  <div id="m-body"></div>
+</div></div>
+<div class="toast" id="toast" hidden></div>
+<div id="print"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+(function(){
+"use strict";
+const CFG=window.CONTROLE_CARGAS_CONFIG||{};
+const $=s=>document.querySelector(s);
+const state={ms:new Map(),cargas:new Map(),f:"abertos",q:"",open:null,role:"visitante",canWrite:false,isAdmin:false,local:false,user:null,perfil:null,tab:"lista"};
+let sb=null;
+
+/* ================= utilidades (mesmas convenções do Deck Cargo Plan) ================= */
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const norm=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+/* mesma chave de TAG do Deck: letras + número sem zeros à esquerda (GRAN CT 003 = GRANCT3) */
+function key(s){const n=norm(s);const m=n.match(/^([A-Z]+)0*(\d+)/);return m?m[1]+m[2]:n}
+const TZ="America/Sao_Paulo";
+const hojeSP=ms=>new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(ms==null?new Date():new Date(ms));
+const fmtD=iso=>iso?String(iso).slice(8,10)+"/"+String(iso).slice(5,7)+"/"+String(iso).slice(0,4):"";
+const fmtDT=v=>new Date(v).toLocaleString("pt-BR",{timeZone:TZ,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+const nf=(v,d=2)=>v==null||v===""||isNaN(v)?"":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:d});
+const n2=v=>v==null||v===""||isNaN(v)?"":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const brl=v=>v==null||isNaN(v)?"":Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const r2=v=>Math.round((+v||0)*100)/100;
+const up=v=>typeof v==="string"?v.toLocaleUpperCase("pt-BR").trim():v;
+const deacc=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase();
+/* "R$ 1.012,00" / "1.012,00" / 1012 → 1012 */
+function num(v){if(v==null||v==="")return null;if(typeof v==="number")return v;let s=String(v).replace(/R\$|\s/g,"");if(!s)return null;
+  if(/,\d{1,3}$/.test(s)||(s.includes(",")&&!s.includes(".")))s=s.replace(/\./g,"").replace(",",".");else s=s.replace(/,/g,"");const n=parseFloat(s);return isNaN(n)?null:n}
+function toISO(v){if(!v)return"";if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==="number"){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
+  const s=String(v).trim();let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:""}
+const uid=()=>Math.random().toString(36).slice(2,10);
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2800)}
+
+/* TAG padronizada: CAIXA ALTA, blocos separados por um espaço; hífen entre números (dígito verificador) é mantido.
+   gran-ct-003 → GRAN CT 003 · trcu108 → TRCU 108 · lkbu 880103-8 → LKBU 880103-8 */
+function normTag(s){let t=String(s||"").toUpperCase().trim();if(!t)return"";
+  t=t.replace(/(\d)-(?=\d)/g,"$1\u0001").replace(/[-_.\/\s]+/g," ").replace(/\u0001/g,"-");
+  t=t.replace(/([A-Z])(?=\d)/g,"$1 ").replace(/(\d)(?=[A-Z])/g,"$1 ");return t.replace(/\s+/g," ").trim()}
+
+/* vencimento: igual ao Deck (vermelho = vencido; amarelo = vence em até 3 meses) */
+function vencStatus(v){if(!v)return"";const h=hojeSP(),d=String(v).slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return"";if(d<h)return"x";
+  const t=new Date(Date.UTC(+h.slice(0,4),+h.slice(5,7)-1+3,+h.slice(8,10))).toISOString().slice(0,10);return d<=t?"a":""}
+
+/* ================= regras do manifesto ================= */
+const stc=s=>"s-"+deacc(s).replace(/\s+/g,"-");
+const STATUS=["RASCUNHO","EMITIDO","EM TRÂNSITO","RECEBIDO A BORDO","COM DIVERGÊNCIA","CONFERIDO","ENCERRADO","CANCELADO"];
+const FECHADOS=["ENCERRADO","CANCELADO"];
+const SENTIDOS=["EMBARQUE","DESEMBARQUE","BACKLOAD"];
+const EMBALAGENS=["CESTA","CONTÊINER","SKID","CAIXA","TAMBOR","TANQUE","BAG","PALETE","TUBULAR","OUTRO"];
+const UAS=["UA","KG","L","CX","M"];
+const DEPTOS=["HOSPITAL","SHIP","COZINHA","MÁQUINAS","CONVÉS","OUTRO"];
+const RX_MED=/\b(CPRS?|COMP|AMP|AMPOLAS?|CAPSULAS?|CAPS|MG|ML|SACHE|SACHES|INJ|INJETAVEL|XAROPE|FRASCO|SOL)\b/;
+const RX_EQUIP=/\b(REFRIGERADOR|GELADEIRA|FREEZER|CONGELADOR|MAQUINA|BOMBA|MOTOR|COMPRESSOR|GERADOR|BEBEDOURO|AR CONDICIONADO)\b/;
+const RX_CTL=/\b(BROMAZEPAM|HALOPERIDOL|DIAZEPAM|CLONAZEPAM|ALPRAZOLAM|LORAZEPAM|MIDAZOLAM|MORFINA|TRAMADOL|CODEINA|FENOBARBITAL|PROMETAZINA INJ|CETAMINA|FENTANIL|PETIDINA|ZOLPIDEM|AMITRIPTILINA)\b/;
+const RX_FRIO=/\b(INSULINA|VACINA|OCITOCINA|SUCCINILCOLINA)\b/;
+
+/* item normalizado: peso unitário mínimo 1 kg; peso total sugerido = qtd × peso unit quando vier vazio */
+function fixItem(i){
+  const o=Object.assign({id:uid(),pr:"",po:"",desc:"",ua:"UA",qtd:1,sap:"",cu:null,cl:null,pu:1,pt:null,obs:"",depto:"HOSPITAL",controlado:false,refrig:false,temp:"",recebido:false,recPor:"",recEm:"",div:""},i);
+  for(const k of ["pr","po","desc","ua","sap","obs","depto","recPor","div","temp"])o[k]=up(String(o[k]??""));
+  o.qtd=num(o.qtd)||0;o.cu=num(o.cu);o.cl=num(o.cl);o.pu=num(o.pu);o.pt=num(o.pt);
+  if(o.pu==null||o.pu<1)o.pu=1;
+  if(o.pt==null)o.pt=r2(o.qtd*o.pu);
+  if(o.cl==null&&o.cu!=null)o.cl=r2(o.qtd*o.cu);
+  return o;
+}
+const isLeve=i=>i.pt!=null&&i.pt<r2(i.qtd*i.pu)-0.001;
+function ctOf(m,i){return m.contentores.find(c=>c.id===i.ct)||m.contentores[0]||null}
+function itemAlerts(m,i){
+  const a=[];const d=deacc(i.desc);
+  if(i.pt>r2(i.qtd*i.pu)+0.001)a.push(`peso total ${nf(i.pt)} kg acima de qtd × peso unit (${nf(r2(i.qtd*i.pu))} kg)`);
+  if(i.pt!=null&&i.pt<1)a.push("peso total menor que 1 kg");
+  if(RX_EQUIP.test(d)&&i.pu<5)a.push("verificar peso do equipamento");
+  if(RX_MED.test(d)&&i.ua==="KG")a.push("medicamento em KG — use UA");
+  if(i.cu!=null&&i.cl!=null&&Math.abs(r2(i.qtd*i.cu)-i.cl)>0.01)a.push(`custo da linha ≠ qtd × custo unit (${brl(r2(i.qtd*i.cu))})`);
+  if(i.refrig&&!i.temp)a.push("refrigerado sem temperatura informada");
+  const c=ctOf(m,i);if(i.refrig&&c&&/CESTA/.test(c.embalagem||"")&&!c.caixaTermica)a.push("refrigerado em cesta aberta — confirmar caixa térmica");
+  if(i.div)a.push("divergência: "+i.div);
+  return a;
+}
+const CT_REQ=[["embalagem","embalagem"],["tipo","tipo"],["eslinga","eslinga"],["tara","tara"],["sap","nº SAP"],["comp","dimensão"],["vencimento","vencimento"],["selo","selo"]];
+function ctAlerts(c){
+  const a=[];if(!c.tag)a.push("contentor sem TAG");
+  const falta=CT_REQ.filter(([k])=>c[k]==null||c[k]==="").map(([,l])=>l);if(falta.length)a.push(`bloco do contentor ${c.tag||""} incompleto: ${falta.join(", ")}`);
+  const v=vencStatus(c.vencimento);if(v==="x")a.push(`${c.tag}: eslinga/certificado VENCIDO`);else if(v==="a")a.push(`${c.tag}: eslinga/certificado vence em até 3 meses`);
+  if(c.perigosa&&(!c.onu||!c.classe))a.push(`${c.tag}: carga perigosa sem nº ONU/classe`);
+  if(c.div)a.push(`${c.tag}: divergência — ${c.div}`);
+  return a;
+}
+function alertsOf(m){
+  const out=[];for(const c of m.contentores)for(const t of ctAlerts(c))out.push({t});
+  if(!m.rt&&!m.nf&&!m.transportadora&&!m.cte)out.push({t:"transporte em branco (RT, nota fiscal, transportadora, CT-e)"});
+  m.itens.forEach((i,ix)=>{for(const t of itemAlerts(m,i))out.push({t:`linha ${ix+1} (${i.desc.slice(0,38)}): ${t}`,ix})});
+  return out;
+}
+const hasDiv=m=>m.contentores.some(c=>c.div)||m.itens.some(i=>i.div);
+function totals(m){
+  const t={linhas:m.itens.length,itens:0,tara:0,valor:0,rec:0,dep:{}};
+  for(const i of m.itens){t.itens+=+i.pt||0;t.valor+=+i.cl||0;if(i.recebido)t.rec++;const d=t.dep[i.depto]||(t.dep[i.depto]={peso:0,valor:0,n:0,rec:0});d.peso+=+i.pt||0;d.valor+=+i.cl||0;d.n++;if(i.recebido)d.rec++}
+  for(const c of m.contentores)t.tara+=+c.tara||0;
+  t.itens=r2(t.itens);t.valor=r2(t.valor);t.bruto=r2(t.itens+t.tara);return t;
+}
+
+/* ================= camada de dados: tabela "manifestos" (id, data jsonb) no mesmo Supabase do Deck =================
+   Sem a tabela criada (ou sem conexão) a página funciona em MODO LOCAL, gravando só neste navegador. */
+const LKEY="mft-local-v1";
+function localLoad(){try{return new Map(Object.entries(JSON.parse(localStorage.getItem(LKEY)||"{}")))}catch(e){return new Map()}}
+function localSave(){try{localStorage.setItem(LKEY,JSON.stringify(Object.fromEntries(state.ms)))}catch(e){}}
+async function loadAll(table){const out=new Map();let from=0;const step=1000;
+  for(;;){const {data,error}=await sb.from(table).select("id,data").order("id").range(from,from+step-1);if(error)throw error;for(const r of data)out.set(r.id,r.data);if(data.length<step)break;from+=step}return out}
+async function persist(m){
+  m.editadoEm=new Date().toISOString();m.editadoPor=state.user?(state.perfil&&state.perfil.nome)||state.user.email:"local";
+  const id=m.id;const body=JSON.parse(JSON.stringify(m));
+  if(state.local){state.ms.set(id,body);localSave();render();return true}
+  const {error}=await sb.from("manifestos").upsert({id,data:body},{onConflict:"id"});
+  if(error){toast(/permission|policy|row-level/i.test(error.message)?"Sem permissão para gravar.":"Não foi possível salvar: "+error.message);return false}
+  state.ms.set(id,body);render();return true;
+}
+function quem(){return state.user?((state.perfil&&state.perfil.nome)||state.user.email):"local"}
+function logH(m,txt){(m.hist||(m.hist=[])).unshift({em:new Date().toISOString(),por:quem(),txt})}
+const canEdit=m=>state.canWrite&&m&&!FECHADOS.includes(m.status);
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+/* ================= KPIs e lista ================= */
+const vivos=()=>[...state.ms.values()].filter(m=>!m.excluido);
+function renderKpis(){
+  const ab=vivos().filter(m=>!FECHADOS.includes(m.status));let rec=0,peso=0,val=0,al=0;
+  for(const m of ab){const t=totals(m);rec+=t.linhas-t.rec;peso+=t.bruto;val+=t.valor;al+=alertsOf(m).length}
+  $("#k-ab").textContent=ab.length;$("#k-rec").textContent=rec;$("#k-peso").textContent=nf(peso,0)+" kg";$("#k-val").textContent=brl(val);$("#k-al").textContent=al;
+}
+function match(m,q){if(!q)return true;const Q=deacc(q),K=key(q);
+  if(deacc(m.codigo).includes(Q))return true;if(m.contentores.some(c=>key(c.tag)===K||deacc(c.tag).includes(Q)))return true;
+  return m.itens.some(i=>deacc(i.pr).includes(Q)||deacc(i.po).includes(Q)||deacc(i.sap).includes(Q)||deacc(i.desc).includes(Q))}
+function renderList(){
+  const tb=$("#rows");let list=vivos();
+  if(state.f==="abertos")list=list.filter(m=>!FECHADOS.includes(m.status));else if(state.f==="encerrados")list=list.filter(m=>FECHADOS.includes(m.status));
+  list=list.filter(m=>match(m,state.q)).sort((a,b)=>(b.data||"").localeCompare(a.data||"")||String(b.codigo).localeCompare(String(a.codigo)));
+  $("#b-exemplo").hidden=!(state.canWrite&&!vivos().some(m=>m.codigo==="047-2026"));
+  if(!list.length){tb.innerHTML=`<tr><td colspan="11" class="empty">${vivos().length?"Nenhum manifesto neste filtro.":"Nenhum manifesto ainda. Use “Novo manifesto”, “Importar Excel” ou “Carregar 047-2026”."}</td></tr>`;return}
+  tb.innerHTML=list.map(m=>{const t=totals(m),a=alertsOf(m).length;
+    return `<tr><td><button class="mlink" data-open="${esc(m.id)}">${esc(m.codigo)}</button></td><td class="mono">${fmtD(m.data)}</td><td>${esc(m.sentido)}</td><td>${esc(m.de)} → ${esc(m.para)}</td>
+      <td class="tag">${m.contentores.map(c=>esc(c.tag||"—")).join(", ")}</td><td class="num">${t.linhas}</td><td class="num">${t.rec}/${t.linhas}</td>
+      <td class="num">${nf(t.bruto)}</td><td class="num">${n2(t.valor)}</td><td class="num">${a?`<span class="al">${a}</span>`:"0"}</td><td><span class="st ${stc(m.status)}">${esc(m.status)}</span></td></tr>`}).join("");
+}
+
+/* ================= detalhe do manifesto (espelha o formulário real) ================= */
+function dd(v,{venc}={}){if(v==null||v==="")return`<dd class="vazio">a confirmar</dd>`;const st=venc?vencStatus(v):"";return `<dd class="${st?"venc-"+st:""}">${esc(venc?fmtD(v):v)}</dd>`}
+function deckOf(tag){if(!tag)return null;const k=key(tag);let best=null;for(const [id,c] of state.cargas){if(key(c.tag)===k&&(!best||(c.ultimaMov||"")>(best.c.ultimaMov||"")))best={id,c}}return best}
+function nextActions(m){
+  const s=m.status,A=[];
+  if(s==="RASCUNHO")A.push(["EMITIDO","Emitir"]);
+  if(s==="EMITIDO")A.push(["EM TRÂNSITO","Em trânsito"]);
+  if(s==="EM TRÂNSITO")A.push(["RECEBIDO A BORDO","Recebido a bordo"]);
+  if(s==="RECEBIDO A BORDO"||s==="COM DIVERGÊNCIA")A.push(["CONFERIDO","Conferir"]);
+  if(s==="CONFERIDO"&&state.isAdmin)A.push(["ENCERRADO","Encerrar"]);
+  return A;
+}
+function renderDet(){
+  const m=state.ms.get(state.open);const p=$("#p-det");if(!m){p.hidden=true;$("#p-lista").hidden=state.tab!=="lista";return}
+  const t=totals(m),al=alertsOf(m),ed=canEdit(m);
+  const ctHtml=m.contentores.map((c,ci)=>{const dk=deckOf(c.tag);
+    return `<div class="blk"><h3>CONTENTOR ${m.contentores.length>1?ci+1:""}${ed?` <button class="rowbtn" data-ct="${ci}">Editar</button>`:""}</h3><dl>
+      <dt>TAG</dt><dd><span class="tagbig">${esc(c.tag||"—")}</span>${c.conferido?' <span class="badge b-leve">CONFERIDO</span>':""}</dd>
+      <dt>Embalagem</dt>${dd(c.embalagem)}<dt>Tipo</dt>${dd(c.tipo)}<dt>Eslinga</dt>${dd(c.eslinga)}<dt>Tara (kg)</dt>${dd(c.tara==null?"":nf(c.tara))}
+      <dt>Nº SAP</dt>${dd(c.sap)}<dt>Dimensão</dt>${dd(c.comp?`${nf(c.comp)} × ${nf(c.larg)}${c.alt?" × "+nf(c.alt):""} m`:"")}
+      <dt>Vencimento</dt>${dd(c.vencimento,{venc:1})}<dt>Selo</dt>${dd(c.selo)}<dt>Guindaste</dt><dd>${c.guindaste?"SIM":"NÃO"}</dd>
+      ${c.caixaTermica?"<dt>Caixa térmica</dt><dd>SIM</dd>":""}${c.perigosa?`<dt>Carga perigosa</dt><dd>ONU ${esc(c.onu)} · classe ${esc(c.classe)}</dd>`:""}
+      <dt>Status</dt><dd>${esc(c.status||"NA BASE")}</dd>${c.div?`<dt>Divergência</dt><dd class="vazio">${esc(c.div)}</dd>`:""}</dl></div>
+      `}).join("");
+  const deckHtml=m.contentores.map((c,ci)=>{const dk=deckOf(c.tag);return `${c.tag?`<div class="deckref ${dk?"ok":""}">${dk?`<b>No Deck Cargo Plan:</b> ${esc(dk.c.tag)} · local atual <b>${esc(dk.c.local||"—")}</b> · eslinga ${esc(dk.c.eslinga||"—")} · venc. ${fmtD(dk.c.vencimento)||"—"} · ${dk.c.qtd===1?"<b>A BORDO</b>":"fora de bordo"}
+        ${ed?` <button class="rowbtn" data-usedeck="${ci}">Usar dados do Deck</button>`:""}`:`TAG ${esc(c.tag)} ainda não cadastrada no Deck Cargo Plan.`} <a class="rowbtn" href="index.html?tag=${encodeURIComponent(c.tag)}" style="text-decoration:none">Ver no Deck Cargo Plan</a></div>`:""}`}).join("");
+  const rowsH=m.itens.map((i,ix)=>{const a=itemAlerts(m,i);const c=ctOf(m,i);
+    return `<tr class="${a.length?"alerta":""} ${i.recebido?"rec":""}">
+      ${ed?`<td class="selc"><input type="checkbox" class="selr" data-ix="${ix}" aria-label="Selecionar linha ${ix+1}"></td>`:""}
+      <td class="num">${ix+1}</td><td class="mono">${esc(i.pr)}</td><td class="mono">${esc(i.po)}</td>
+      <td class="wrapc">${esc(i.desc)}${i.controlado?'<span class="badge b-ctl">CONTROLADO</span>':""}${i.refrig?`<span class="badge b-frio">FRIO ${esc(i.temp)}</span>`:""}${isLeve(i)?'<span class="badge b-leve" title="Peso total informado manualmente — item leve">LEVE</span>':""}${a.length?`<div class="hint al">⚠ ${esc(a.join(" · "))}</div>`:""}</td>
+      <td>${esc(i.ua)}</td><td class="num">${nf(i.qtd)}</td><td class="mono">${esc(i.sap)}</td><td class="num">${n2(i.cu)}</td><td class="num">${n2(i.cl)}</td>
+      <td class="num">${nf(i.pu)}</td><td class="num">${nf(i.pt)}</td><td>${esc(i.obs)}</td>${m.contentores.length>1?`<td class="tag">${esc(c?c.tag:"")}</td>`:""}
+      <td>${esc(i.depto)}</td><td class="rc">${i.recebido?"✓ "+esc(i.recPor):""}</td><td class="mono">${i.recebido?fmtD(i.recEm):""}</td>
+      <td class="acts">${ed?`<button class="rowbtn" data-edit="${ix}">Editar</button>`:""}</td></tr>`}).join("");
+  const depH=Object.entries(t.dep).map(([d,v])=>`<div class="kpi"><small>${esc(d)} · ${v.rec}/${v.n} recebidas</small><b>${nf(v.peso)} kg</b><span class="kpct">${brl(v.valor)}</span></div>`).join("");
+  const acts=nextActions(m);
+  p.innerHTML=`
+    <div class="mhead">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn" id="d-back">← Manifestos</button>
+        <div class="code"><small>CÓDIGO<br><i style="font-weight:500">CODE</i></small><b>${esc(m.codigo)} =&gt; ${fmtD(m.data)}</b></div>
+        <span class="st ${stc(m.status)}">${esc(m.status)}</span><span class="hint">${esc(m.sentido)}</span></div>
+      <div class="flow">
+        ${state.canWrite?acts.map(([s,l])=>`<button class="btn primary" data-st="${esc(s)}">${l}</button>`).join(""):""}
+        ${ed?`<button class="btn" id="d-head">Editar cabeçalho</button>`:""}
+        <button class="btn" id="d-print">Imprimir / PDF</button><button class="btn" id="d-xls">Exportar Excel</button>
+        ${state.isAdmin&&!FECHADOS.includes(m.status)?`<button class="btn dangerbtn" id="d-cancel">Cancelar</button>`:""}
+        ${state.canWrite&&m.status==="RASCUNHO"?`<button class="btn dangerbtn" id="d-del">Excluir rascunho</button>`:""}
+      </div>
+    </div>
+    ${m.status==="CANCELADO"?`<div class="notice">Cancelado: ${esc(m.motivoCancel||"")}</div>`:""}
+    <div class="blocks">
+      <div class="blk"><h3>LOGÍSTICA</h3><dl><dt>De</dt>${dd(m.de)}<dt>Para</dt>${dd(m.para)}<dt>Responsável</dt>${dd(m.responsaveis)}<dt>Telefone</dt>${dd(m.telefones)}${m.obs?`<dt>Obs.</dt><dd>${esc(m.obs)}</dd>`:""}</dl></div>
+      ${ctHtml}
+      <div class="blk"><h3>TRANSPORTE</h3><dl><dt>RT</dt>${dd(m.rt)}<dt>Nota fiscal</dt>${dd(m.nf)}<dt>Transportadora</dt>${dd(m.transportadora)}<dt>CT-e</dt>${dd(m.cte)}</dl></div>
+    </div>
+    ${deckHtml}
+    ${al.length?`<div class="pends"><h3>Pendências do manifesto (${al.length})</h3><ul>${al.map(x=>`<li>${esc(x.t)}</li>`).join("")}</ul></div>`:`<div class="pends okp"><h3>Sem pendências</h3></div>`}
+    <div class="bar">
+      <h2 style="font-size:20px">MATERIAIS <span class="muted" style="font-weight:500">| RECEPTOR</span></h2>
+      <div class="group">
+        ${ed?`<button class="btn" id="d-add">Adicionar linha</button><button class="btn" id="d-paste">Colar do Excel</button><button class="btn" id="d-addct">Adicionar contentor</button>`:""}
+        ${state.canWrite&&!FECHADOS.includes(m.status)&&m.itens.length?`<button class="btn primary" id="d-rec">Receber linhas</button>`:""}
+        ${ed&&m.contentores.length?`<button class="btn" id="d-conf">${m.contentores.every(c=>c.conferido)?"Desfazer conferência do contentor":"Contentor conferido"}</button>`:""}
+      </div>
+    </div>
+    <div class="tablewrap"><table><thead><tr>${ed?'<th class="selc"><input type="checkbox" id="selall" aria-label="Selecionar todas"></th>':""}<th>#</th><th>PR Máximo</th><th>PO SAP</th><th>Descrição</th><th>UA</th><th>Qtd</th><th>Item SAP</th><th>Custo unit (R$)</th><th>Custo linha (R$)</th><th>Peso unit (kg)</th><th>Peso total (kg)</th><th>Observação</th>${m.contentores.length>1?"<th>TAG</th>":""}<th>Departamento</th><th>Assinatura</th><th>Data</th><th></th></tr></thead>
+      <tbody>${rowsH||`<tr><td colspan="18" class="empty">Sem linhas. Use “Adicionar linha” ou “Colar do Excel”.</td></tr>`}</tbody></table></div>
+    <div class="tot">
+      <div class="kpi"><small>Linhas</small><b>${t.linhas}</b><span class="kpct">${t.rec} recebidas</span></div>
+      <div class="kpi"><small>Peso dos itens</small><b>${nf(t.itens)} kg</b></div>
+      <div class="kpi"><small>Tara contentor(es)</small><b>${t.tara?nf(t.tara)+" kg":"–"}</b></div>
+      <div class="kpi"><small>Peso bruto</small><b>${nf(t.bruto)} kg</b>${t.tara?"":'<span class="kpct">sem a tara</span>'}</div>
+      <div class="kpi"><small>Valor total</small><b>${brl(t.valor)}</b></div>${depH}
+    </div>
+    <div class="histm">${(m.hist||[]).map(h=>`${fmtDT(h.em)} · ${esc(h.por)} · ${esc(h.txt)}`).join("\n")}</div>`;
+  bindDet(m);
+}
+function bindDet(m){
+  const on=(sel,fn)=>{const el=$(sel);if(el)el.onclick=fn};
+  on("#d-back",()=>{state.open=null;try{history.replaceState(null,"",location.pathname)}catch(e){}render()});
+  on("#d-head",()=>editHead(m));on("#d-add",()=>editItem(m,-1));on("#d-paste",()=>pasteItems(m));on("#d-rec",()=>receber(m));
+  on("#d-print",()=>printM(m));on("#d-xls",()=>exportXls(m));on("#d-cancel",()=>cancelar(m));on("#d-del",()=>excluir(m));
+  on("#d-addct",()=>{const n=clone(m);n.contentores.push({id:uid(),tag:"",guindaste:true,status:"NA BASE"});editCt(n,n.contentores.length-1,true)});
+  on("#d-conf",async()=>{const n=clone(m);const v=!n.contentores.every(c=>c.conferido);n.contentores.forEach(c=>c.conferido=v);logH(n,v?"contentor(es) conferido(s)":"conferência do contentor desfeita");await persist(n)});
+  document.querySelectorAll("#p-det [data-ct]").forEach(b=>b.onclick=()=>editCt(clone(m),+b.dataset.ct));
+  document.querySelectorAll("#p-det [data-edit]").forEach(b=>b.onclick=()=>editItem(m,+b.dataset.edit));
+  document.querySelectorAll("#p-det [data-st]").forEach(b=>b.onclick=()=>mudarStatus(m,b.dataset.st));
+  document.querySelectorAll("#p-det [data-usedeck]").forEach(b=>b.onclick=async()=>{const n=clone(m);const c=n.contentores[+b.dataset.usedeck];const dk=deckOf(c.tag);if(!dk)return;
+    if(dk.c.eslinga)c.eslinga=up(dk.c.eslinga);if(dk.c.vencimento)c.vencimento=String(dk.c.vencimento).slice(0,10);if(dk.c.comp)c.comp=dk.c.comp;if(dk.c.larg)c.larg=dk.c.larg;
+    logH(n,`dados do contentor ${c.tag} preenchidos a partir do Deck Cargo Plan`);if(await persist(n))toast("Eslinga, vencimento e medidas copiados do Deck.")});
+  const sa=$("#selall");if(sa)sa.onchange=()=>document.querySelectorAll("#p-det .selr").forEach(x=>x.checked=sa.checked);
+}
+
+/* ================= status ================= */
+async function mudarStatus(m,s){
+  const n=clone(m);const err=[];
+  if(s==="EMITIDO"){if(!n.itens.length)err.push("o manifesto precisa de pelo menos 1 linha");n.contentores.forEach((c,i)=>{if(!c.tag)err.push(`contentor ${i+1} sem TAG`)});
+    if(!n.contentores.length)err.push("cadastre o contentor (TAG)");
+    for(const c of n.contentores){const o=dupTag(c.tag,n.id);if(o)err.push(`TAG ${c.tag} já está no manifesto aberto ${o.codigo}`)}}
+  if(s==="CONFERIDO"){if(!n.contentores.every(c=>c.conferido))err.push("marque o contentor como conferido");const pend=n.itens.filter(i=>!i.recebido).length;if(pend)err.push(`${pend} linha(s) ainda sem recebimento`);
+    if(hasDiv(n))err.push("há divergências abertas");n.contentores.forEach(c=>{const f=["tara","comp","vencimento"].filter(k=>c[k]==null||c[k]==="");if(f.length)err.push(`contentor ${c.tag}: falta ${f.map(k=>({tara:"tara",comp:"dimensão",vencimento:"vencimento"})[k]).join(", ")}`)})}
+  if(err.length){openModal("Não foi possível mudar para "+s,`<div class="pad"><ul>${err.map(e=>`<li>${esc(e)}</li>`).join("")}</ul></div>`);return}
+  n.status=s;
+  if(s==="RECEBIDO A BORDO"&&hasDiv(n))n.status="COM DIVERGÊNCIA";
+  if(s==="EM TRÂNSITO")n.contentores.forEach(c=>c.status="EM TRÂNSITO");
+  if(s==="RECEBIDO A BORDO")n.contentores.forEach(c=>c.status=n.sentido==="EMBARQUE"?"A BORDO":c.status);
+  if(s==="ENCERRADO"){n.contentores.forEach(c=>c.status=n.sentido==="EMBARQUE"?"A BORDO":"DESEMBARCADO");n.dataReal=hojeSP()}
+  logH(n,"status → "+n.status);await persist(n);
+}
+/* após qualquer edição: RECEBIDO A BORDO ↔ COM DIVERGÊNCIA conforme haja divergência */
+function autoDiv(n){if(n.status==="RECEBIDO A BORDO"&&hasDiv(n)){n.status="COM DIVERGÊNCIA";logH(n,"status → COM DIVERGÊNCIA")}else if(n.status==="COM DIVERGÊNCIA"&&!hasDiv(n)){n.status="RECEBIDO A BORDO";logH(n,"divergências resolvidas · status → RECEBIDO A BORDO")}}
+function cancelar(m){openModal("Cancelar manifesto "+m.codigo,`<form class="form" id="f-c"><label class="wide">Motivo (obrigatório)<textarea id="c-mot" required></textarea></label><div class="actions"><button class="btn dangerbtn solid">Cancelar manifesto</button></div></form>`);
+  $("#f-c").onsubmit=async e=>{e.preventDefault();const mot=up($("#c-mot").value);if(!mot)return;const n=clone(m);n.status="CANCELADO";n.motivoCancel=mot;logH(n,"CANCELADO: "+mot);if(await persist(n))closeModal()}}
+function excluir(m){openModal("Excluir rascunho "+m.codigo,`<div class="pad"><p>O rascunho some da lista. Manifestos emitidos não podem ser excluídos, só cancelados.</p><button class="btn dangerbtn solid" id="x-ok">Excluir</button></div>`);
+  $("#x-ok").onclick=async()=>{const n=clone(m);n.excluido=true;logH(n,"rascunho excluído");if(await persist(n)){closeModal();state.open=null;render()}}}
+function dupTag(tag,selfId){if(!tag)return null;const k=key(tag);return vivos().find(o=>o.id!==selfId&&!FECHADOS.includes(o.status)&&o.contentores.some(c=>key(c.tag)===k))||null}
+
+/* ================= modal ================= */
+function openModal(title,html,wide){$("#m-title").textContent=title;$("#m-body").innerHTML=html;$("#m-box").classList.toggle("wide",!!wide);$("#modal").hidden=false;const f=$("#m-body input:not([type=checkbox]),#m-body select,#m-body textarea");f&&f.focus()}
+function closeModal(){$("#modal").hidden=true;$("#m-body").innerHTML=""}
+$("#m-close").onclick=closeModal;$("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+const opt=(arr,v)=>arr.map(x=>`<option${x===v?" selected":""}>${esc(x)}</option>`).join("")+(v&&!arr.includes(v)?`<option selected>${esc(v)}</option>`:"");
+const fv=id=>{const el=document.getElementById(id);return el?(el.type==="checkbox"?el.checked:el.value):undefined};
+
+/* ---- novo / cabeçalho ---- */
+function proxCodigo(){const ano=hojeSP().slice(0,4);let mx=0;for(const m of vivos()){const r=String(m.codigo).match(/^(\d+)-(\d{4})$/);if(r&&r[2]===ano)mx=Math.max(mx,+r[1])}return String(mx+1).padStart(3,"0")+"-"+ano}
+function novo(){const m={id:"",codigo:proxCodigo(),data:hojeSP(),sentido:"EMBARQUE",de:"BASE GRANENERGIA - MACAÉ",para:"SAYAN POLARIS",responsaveis:"",telefones:"",rt:"",nf:"",transportadora:"",cte:"",obs:"",status:"RASCUNHO",contentores:[{id:uid(),tag:"",embalagem:"CESTA",guindaste:true,status:"NA BASE"}],itens:[],hist:[],criadoEm:new Date().toISOString()};editHead(m,true)}
+function editHead(m,isNew){
+  openModal(isNew?"Novo manifesto":"Cabeçalho "+m.codigo,`<form class="form" id="f-h" autocomplete="off">
+    <label>Código<input id="h-codigo" value="${esc(m.codigo)}" required placeholder="047-2026"></label>
+    <label>Data<input id="h-data" type="date" value="${esc(m.data)}" required></label>
+    <label>Sentido<select id="h-sentido">${opt(SENTIDOS,m.sentido)}</select></label>
+    <fieldset><legend>Logística</legend>
+      <label>De<input id="h-de" value="${esc(m.de)}"></label><label>Para<input id="h-para" value="${esc(m.para)}"></label>
+      <label class="wide">Responsável (separe com /)<input id="h-resp" value="${esc(m.responsaveis)}"></label>
+      <label class="wide">Telefone<input id="h-tel" value="${esc(m.telefones)}"></label></fieldset>
+    <fieldset><legend>Transporte</legend>
+      <label>RT<input id="h-rt" value="${esc(m.rt)}"></label><label>Nota fiscal<input id="h-nf" value="${esc(m.nf)}"></label>
+      <label>Transportadora<input id="h-tr" value="${esc(m.transportadora)}"></label><label>CT-e<input id="h-cte" value="${esc(m.cte)}"></label></fieldset>
+    <label class="wide">Observações<textarea id="h-obs">${esc(m.obs)}</textarea></label>
+    <div class="errbox" id="h-err"></div>
+    <div class="actions"><button class="btn primary">${isNew?"Criar manifesto":"Salvar"}</button></div></form>`);
+  $("#f-h").onsubmit=async e=>{e.preventDefault();const n=clone(m);
+    n.codigo=up(fv("h-codigo")).replace(/\s+/g,"");n.data=fv("h-data");n.sentido=fv("h-sentido");n.de=up(fv("h-de"));n.para=up(fv("h-para"));n.responsaveis=up(fv("h-resp"));n.telefones=up(fv("h-tel"));
+    n.rt=up(fv("h-rt"));n.nf=up(fv("h-nf"));n.transportadora=up(fv("h-tr"));n.cte=up(fv("h-cte"));n.obs=up(fv("h-obs"));
+    if(!/^\d{1,4}-\d{4}$/.test(n.codigo)){$("#h-err").textContent="Código no formato NNN-AAAA (ex.: 047-2026).";return}
+    const id="m-"+n.codigo;if(vivos().some(o=>o.codigo===n.codigo&&o.id!==m.id)){$("#h-err").textContent="Já existe um manifesto com esse código.";return}
+    if(isNew){n.id=id;n.criadoPor=quem();logH(n,"manifesto criado")}else logH(n,"cabeçalho alterado");
+    if(await persist(n)){closeModal();state.open=n.id;render();if(isNew)editCt(clone(state.ms.get(n.id)),0)}};
+}
+
+/* ---- contentor ---- */
+function editCt(m,ci,isNew){
+  const c=m.contentores[ci];
+  openModal("Contentor "+(c.tag||""),`<form class="form" id="f-ct" autocomplete="off">
+    <fieldset><legend>Identificação</legend>
+      <label>TAG<input id="c-tag" value="${esc(c.tag)}" placeholder="GRAN CT 003"></label>
+      <label>Embalagem<select id="c-emb">${opt(EMBALAGENS,c.embalagem)}</select></label>
+      <label>Tipo<input id="c-tipo" value="${esc(c.tipo)}" placeholder="CESTA ABERTA OFFSHORE"></label>
+      <label>Nº SAP<input id="c-sap" value="${esc(c.sap)}"></label></fieldset>
+    <fieldset><legend>Dimensões e peso</legend>
+      <label>Comprimento (m)<input id="c-comp" type="number" step="0.01" value="${c.comp??""}"></label><label>Largura (m)<input id="c-larg" type="number" step="0.01" value="${c.larg??""}"></label>
+      <label>Altura (m)<input id="c-alt" type="number" step="0.01" value="${c.alt??""}"></label><label>Tara (kg)<input id="c-tara" type="number" step="0.1" value="${c.tara??""}"></label></fieldset>
+    <fieldset><legend>Segurança e certificação</legend>
+      <label>Eslinga<input id="c-esl" value="${esc(c.eslinga)}"></label><label>Vencimento (eslinga / certificado)<input id="c-venc" type="date" value="${esc(c.vencimento||"")}"></label>
+      <label>Selo<input id="c-selo" value="${esc(c.selo)}" placeholder="N/A para cesta aberta"></label><label>Temperatura<input id="c-temp" value="${esc(c.temp)}"></label>
+      <label class="ck"><input id="c-gui" type="checkbox"${c.guindaste?" checked":""}> Requer guindaste</label>
+      <label class="ck"><input id="c-cxt" type="checkbox"${c.caixaTermica?" checked":""}> Leva caixa térmica</label>
+      <label class="ck"><input id="c-per" type="checkbox"${c.perigosa?" checked":""}> Carga perigosa</label>
+      <label>Nº ONU<input id="c-onu" value="${esc(c.onu)}"></label><label>Classe de risco<input id="c-cls" value="${esc(c.classe)}"></label></fieldset>
+    <fieldset><legend>Conferência</legend>
+      <label class="ck"><input id="c-conf" type="checkbox"${c.conferido?" checked":""}> Conferido a bordo</label>
+      <label class="wide">Divergência<input id="c-div" value="${esc(c.div)}" placeholder="vazio = sem divergência"></label></fieldset>
+    <div class="errbox" id="c-err"></div>
+    <div class="actions"><button class="btn primary">Salvar contentor</button>${m.contentores.length>1&&!isNew?'<button type="button" class="btn dangerbtn" id="c-rm">Remover contentor</button>':""}<span class="hint">A TAG é padronizada ao salvar (ex.: gran-ct-003 → GRAN CT 003).</span></div></form>`,true);
+  $("#c-tag").addEventListener("blur",()=>{const t=normTag(fv("c-tag"));$("#c-tag").value=t;const dk=deckOf(t);
+    if(dk){$("#c-err").style.color="var(--ok)";$("#c-err").textContent=`TAG encontrada no Deck Cargo Plan (local ${dk.c.local||"—"}). Eslinga/vencimento/medidas vazios foram preenchidos.`;
+      if(!fv("c-esl")&&dk.c.eslinga)$("#c-esl").value=dk.c.eslinga;if(!fv("c-venc")&&dk.c.vencimento)$("#c-venc").value=String(dk.c.vencimento).slice(0,10);
+      if(!fv("c-comp")&&dk.c.comp)$("#c-comp").value=dk.c.comp;if(!fv("c-larg")&&dk.c.larg)$("#c-larg").value=dk.c.larg}});
+  const rm=$("#c-rm");if(rm)rm.onclick=async()=>{const del=m.contentores[ci];m.contentores.splice(ci,1);m.itens.forEach(i=>{if(i.ct===del.id)i.ct=m.contentores[0].id});logH(m,"contentor removido: "+(del.tag||""));if(await persist(m))closeModal()};
+  $("#f-ct").onsubmit=async e=>{e.preventDefault();const err=$("#c-err");err.style.color="";
+    const tag=normTag(fv("c-tag"));const o=dupTag(tag,m.id);if(o){err.textContent=`TAG ${tag} já está no manifesto aberto ${o.codigo}. Encerre ou cancele aquele antes.`;return}
+    if(m.contentores.some((x,j)=>j!==ci&&tag&&key(x.tag)===key(tag))){err.textContent="Essa TAG já está neste manifesto.";return}
+    const dk=deckOf(tag);if(tag&&dk&&dk.c.qtd===1&&m.sentido==="EMBARQUE"&&!confirm(`A TAG ${tag} consta A BORDO no Deck Cargo Plan. Ela precisa ter saído num desembarque antes de um novo embarque. Salvar assim mesmo?`))return;
+    const per=fv("c-per");if(per&&(!up(fv("c-onu"))||!up(fv("c-cls")))){err.textContent="Carga perigosa exige nº ONU e classe de risco.";return}
+    const nn=x=>x===""?null:+x;
+    Object.assign(c,{tag,embalagem:fv("c-emb"),tipo:up(fv("c-tipo")),sap:up(fv("c-sap")),comp:nn(fv("c-comp")),larg:nn(fv("c-larg")),alt:nn(fv("c-alt")),tara:nn(fv("c-tara")),
+      eslinga:up(fv("c-esl")),vencimento:fv("c-venc"),selo:up(fv("c-selo")),temp:up(fv("c-temp")),guindaste:fv("c-gui"),caixaTermica:fv("c-cxt"),perigosa:per,onu:up(fv("c-onu")),classe:up(fv("c-cls")),conferido:fv("c-conf"),div:up(fv("c-div"))});
+    autoDiv(m);logH(m,(isNew?"contentor adicionado: ":"contentor alterado: ")+(tag||"sem TAG"));if(await persist(m))closeModal()};
+}
+
+/* ---- linha de material ---- */
+function editItem(m,ix){
+  const i=ix<0?fixItem({ct:(m.contentores[0]||{}).id}):m.itens[ix];
+  openModal(ix<0?"Nova linha":"Linha "+(ix+1),`<form class="form" id="f-i" autocomplete="off">
+    <label>PR Máximo<input id="i-pr" value="${esc(i.pr)}" placeholder="POL12479 ou VERBAL"></label><label>PO SAP<input id="i-po" value="${esc(i.po)}"></label>
+    <label class="wide">Descrição<input id="i-desc" value="${esc(i.desc)}" required></label>
+    <label>UA<select id="i-ua">${opt(UAS,i.ua)}</select></label><label>Qtd<input id="i-qtd" type="number" step="any" min="0" value="${i.qtd}" required></label>
+    <label>Item SAP<input id="i-sap" value="${esc(i.sap)}" placeholder="código ou SERVICE"></label>
+    <label>Custo unit (R$)<input id="i-cu" type="number" step="0.01" value="${i.cu??""}"></label><label>Custo linha (R$)<input id="i-cl" type="number" step="0.01" value="${i.cl??""}" placeholder="automático"></label>
+    <label>Peso unit (kg, mín. 1)<input id="i-pu" type="number" step="any" min="1" value="${i.pu}"></label><label>Peso total (kg)<input id="i-pt" type="number" step="any" value="${i.pt??""}" placeholder="automático"></label>
+    <label>Departamento<select id="i-dep">${opt(DEPTOS,i.depto)}</select></label>
+    ${m.contentores.length>1?`<label>Contentor<select id="i-ct">${m.contentores.map(c=>`<option value="${c.id}"${c.id===i.ct?" selected":""}>${esc(c.tag||"(sem TAG)")}</option>`).join("")}</select></label>`:""}
+    <label class="wide">Observação<input id="i-obs" value="${esc(i.obs)}"></label>
+    <label class="ck"><input id="i-ctl" type="checkbox"${i.controlado?" checked":""}> Controlado (Portaria 344)</label>
+    <label class="ck"><input id="i-fr" type="checkbox"${i.refrig?" checked":""}> Refrigerado</label><label>Temperatura<input id="i-temp" value="${esc(i.temp)}" placeholder="2 A 8 °C"></label>
+    <label class="wide">Divergência no recebimento<input id="i-div" value="${esc(i.div)}" placeholder="vazio = sem divergência"></label>
+    <div class="actions"><button class="btn primary">Salvar linha</button>${ix>=0?'<button type="button" class="btn dangerbtn" id="i-rm">Excluir linha</button>':""}<span class="hint">Peso total abaixo de qtd × peso unit = item leve (sem alerta).</span></div></form>`,true);
+  $("#i-desc").addEventListener("blur",()=>{const d=deacc(fv("i-desc"));if(ix<0){if(RX_CTL.test(d))$("#i-ctl").checked=true;if(RX_FRIO.test(d)){$("#i-fr").checked=true;if(!fv("i-temp"))$("#i-temp").value="2 A 8 °C"}}});
+  const rm=$("#i-rm");if(rm)rm.onclick=async()=>{const n=clone(m);const [d]=n.itens.splice(ix,1);logH(n,"linha excluída: "+d.desc);if(await persist(n))closeModal()};
+  $("#f-i").onsubmit=async e=>{e.preventDefault();const n=clone(m);
+    const it=fixItem({id:i.id,pr:fv("i-pr"),po:fv("i-po"),desc:fv("i-desc"),ua:fv("i-ua"),qtd:fv("i-qtd"),sap:fv("i-sap"),cu:fv("i-cu"),cl:fv("i-cl"),pu:fv("i-pu"),pt:fv("i-pt"),depto:fv("i-dep"),
+      ct:fv("i-ct")||i.ct||(n.contentores[0]||{}).id,obs:fv("i-obs"),controlado:fv("i-ctl"),refrig:fv("i-fr"),temp:fv("i-temp"),div:fv("i-div"),recebido:i.recebido,recPor:i.recPor,recEm:i.recEm});
+    if(ix<0){n.itens.push(it);logH(n,"linha adicionada: "+it.desc)}else{n.itens[ix]=it;logH(n,`linha ${ix+1} alterada: ${it.desc}`)}
+    autoDiv(n);if(await persist(n))closeModal()};
+}
+
+/* ---- colar do Excel (mesma ordem de colunas do manifesto) ---- */
+const COLS_PASTE=["pr","po","desc","ua","qtd","sap","cu","cl","pu","pt","obs","depto"];
+function autoFlags(i){const d=deacc(i.desc);if(RX_CTL.test(d))i.controlado=true;if(RX_FRIO.test(d)){i.refrig=true;if(!i.temp)i.temp="2 A 8 °C"}return i}
+function pasteItems(m){
+  openModal("Colar linhas do Excel",`<div class="pad"><p class="hint">Copie do Excel as linhas da tabela MATERIAIS, nesta ordem de colunas: <b>PR Máximo · PO SAP · Descrição · UA · Qtd · Item SAP · Custo unit · Custo linha · Peso unit · Peso total · Observação · Departamento</b>. Linhas de cabeçalho são ignoradas.</p>
+    <textarea class="paste" id="pz" placeholder="Cole aqui (Ctrl+V)"></textarea>
+    <div id="pz-prev"></div><div class="actions" style="display:flex;gap:8px;margin-top:10px"><button class="btn primary" id="pz-ok" disabled>Adicionar linhas</button></div></div>`,true);
+  let novos=[];
+  $("#pz").oninput=()=>{const lines=$("#pz").value.split(/\r?\n/).map(l=>l.split("\t")).filter(c=>c.join("").trim());
+    novos=lines.filter(c=>!/PR M[AÁ]X|DESCRI/i.test(c.join(" "))).map(c=>{const o={};COLS_PASTE.forEach((k,j)=>o[k]=(c[j]||"").trim());o.ct=(m.contentores[0]||{}).id;return autoFlags(fixItem(o))}).filter(i=>i.desc);
+    $("#pz-prev").innerHTML=previewTable(novos,m);$("#pz-ok").disabled=!novos.length;$("#pz-ok").textContent=`Adicionar ${novos.length} linha(s)`};
+  $("#pz-ok").onclick=async()=>{const n=clone(m);n.itens.push(...novos);logH(n,`${novos.length} linha(s) coladas do Excel`);if(await persist(n))closeModal()};
+}
+function previewTable(itens,m){if(!itens.length)return"";
+  return `<div class="prev"><table><thead><tr><th>#</th><th>PR</th><th>PO</th><th>Descrição</th><th>UA</th><th>Qtd</th><th>Item SAP</th><th>Custo linha</th><th>Peso unit</th><th>Peso total</th><th>Depto</th><th>Alertas</th></tr></thead><tbody>${
+    itens.map((i,ix)=>{const a=itemAlerts(m||{contentores:[],itens:[]},i);return `<tr class="${a.length?"alerta":""}"><td class="num">${ix+1}</td><td>${esc(i.pr)}</td><td>${esc(i.po)}</td><td>${esc(i.desc)}${i.controlado?'<span class="badge b-ctl">CTL</span>':""}${i.refrig?'<span class="badge b-frio">FRIO</span>':""}${isLeve(i)?'<span class="badge b-leve">LEVE</span>':""}</td><td>${esc(i.ua)}</td><td class="num">${nf(i.qtd)}</td><td>${esc(i.sap)}</td><td class="num">${n2(i.cl)}</td><td class="num">${nf(i.pu)}</td><td class="num">${nf(i.pt)}</td><td>${esc(i.depto)}</td><td class="al">${esc(a.join(" · "))}</td></tr>`}).join("")}</tbody></table></div>`}
+
+/* ---- recebimento por departamento (tablet) ---- */
+function receber(m){
+  const deps=[...new Set(m.itens.map(i=>i.depto))];
+  openModal("Recebimento a bordo · "+m.codigo,`<div class="form" style="padding-top:16px">
+    <label>Departamento<select id="r-dep">${opt(deps,deps[0])}</select></label><label>Recebido por (nome)<input id="r-por" value="${esc(state.perfil&&state.perfil.nome||"")}" required></label>
+    <label>Data<input id="r-data" type="date" value="${hojeSP()}"></label>
+    <div class="wide" id="r-list"></div>
+    <div class="actions"><button class="btn" id="r-all" type="button">Marcar todas</button><button class="btn primary" id="r-ok" type="button">Assinar recebimento</button><span class="hint">Linhas com divergência: escreva o problema ao lado (faltou, avaria, quantidade diferente).</span></div></div>`,true);
+  const draw=()=>{const d=fv("r-dep");$("#r-list").innerHTML=`<div class="prev"><table><thead><tr><th></th><th>#</th><th>Descrição</th><th>Qtd</th><th>UA</th><th>Situação</th><th>Divergência</th></tr></thead><tbody>${
+    m.itens.map((i,ix)=>i.depto!==d?"":`<tr><td class="selc"><input type="checkbox" class="rk" data-ix="${ix}"${i.recebido?" checked":""}></td><td class="num">${ix+1}</td><td>${esc(i.desc)}${i.controlado?'<span class="badge b-ctl">CONTROLADO</span>':""}${i.refrig?'<span class="badge b-frio">FRIO</span>':""}</td><td class="num">${nf(i.qtd)}</td><td>${esc(i.ua)}</td><td class="rc">${i.recebido?"✓ "+esc(i.recPor)+" "+fmtD(i.recEm):"pendente"}</td><td><input class="search rdv" data-ix="${ix}" value="${esc(i.div)}" style="width:200px"></td></tr>`).join("")}</tbody></table></div>`};
+  draw();$("#r-dep").onchange=draw;$("#r-all").onclick=()=>document.querySelectorAll(".rk").forEach(x=>x.checked=true);
+  $("#r-ok").onclick=async()=>{const por=up(fv("r-por"));if(!por){toast("Informe quem recebeu.");return}const n=clone(m);let k=0;
+    document.querySelectorAll(".rk").forEach(x=>{const i=n.itens[+x.dataset.ix];if(x.checked&&!i.recebido){i.recebido=true;i.recPor=por;i.recEm=fv("r-data");k++}else if(!x.checked&&i.recebido){i.recebido=false;i.recPor="";i.recEm=""}});
+    document.querySelectorAll(".rdv").forEach(x=>{n.itens[+x.dataset.ix].div=up(x.value)});
+    autoDiv(n);logH(n,`recebimento ${fv("r-dep")}: ${k} linha(s) assinadas por ${por}`);if(await persist(n)){closeModal();toast(k+" linha(s) recebidas.")}};
+}
+
+/* ================= importação do manifesto em Excel (formato do documento real) ================= */
+$("#b-imp").onclick=()=>$("#f-imp").click();
+$("#f-imp").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{const wb=XLSX.read(await f.arrayBuffer(),{cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""});previewImport(parseManifesto(rows),f.name)}
+  catch(err){toast("Não consegui ler o arquivo: "+err.message)}};
+const lab=v=>deacc(String(v||"").split(/\r?\n/)[0]).replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
+const LABELS={DE:"de",PARA:"para",RESPONSAVEL:"responsaveis",TELEFONE:"telefones",EMBALAGEM:"embalagem",ESLINGA:"eslinga",TARA:"tara","NUMERO SAP":"sap",TIPO:"tipo",DIMENSAO:"dim","DATA VENCIMENTO":"vencimento",SELO:"selo",RT:"rt","NOTA FISCAL":"nf",TRANSPORTADORA:"transportadora",CTE:"cte"};
+function parseManifesto(rows){
+  const out={head:{},itens:[]};let hdr=-1;
+  for(let r=0;r<rows.length;r++){const row=rows[r];
+    for(let c=0;c<row.length;c++){const s=String(row[c]??"");
+      const mc=s.match(/(\d{1,4}-\d{4})\s*=*>\s*(\d{1,2}\/\d{1,2}\/\d{4})/);if(mc){out.head.codigo=mc[1];out.head.data=toISO(mc[2])}
+      const L=lab(s);if(L in LABELS&&hdr<0){let v="";for(let k=c+1;k<row.length;k++){const x=row[k];if(x===""||x==null)continue;if(lab(x) in LABELS)break;v=x;break}if(v!==""&&out.head[LABELS[L]]==null)out.head[LABELS[L]]=v}
+    }
+    if(hdr<0&&row.some(x=>/^PR MAX/.test(lab(x)))&&row.some(x=>/^DESCRI/.test(lab(x))))hdr=r;
+  }
+  if(out.head.codigo==null){for(const row of rows)for(const x of row){const m=String(x).match(/^\s*(\d{1,4}-\d{4})\s*$/);if(m){out.head.codigo=m[1];break}}}
+  if(hdr<0)return out;
+  const H=rows[hdr].map(lab);const col=(...p)=>H.findIndex(h=>p.some(x=>h.startsWith(x)));
+  const C={pr:col("PR MAX"),po:col("PO SAP"),desc:col("DESCRI"),ua:col("UA"),qtd:col("QTD"),sap:col("ITEM SAP"),cu:col("CUSTO UNIT"),cl:col("CUSTO LINHA"),pu:col("PESO UNI"),pt:col("PESO TOT"),obs:col("OBSERV"),depto:col("DEPART"),ass:col("ASSINAT"),dt:col("DATA")};
+  let vaz=0;for(let r=hdr+1;r<rows.length&&vaz<3;r++){const row=rows[r];const g=k=>C[k]>=0?row[C[k]]:"";
+    if(!String(g("desc")).trim()&&!String(g("pr")).trim()){vaz++;continue}vaz=0;if(/^PR MAX/.test(lab(g("pr"))))continue;
+    const i=fixItem({pr:g("pr"),po:g("po"),desc:g("desc"),ua:g("ua")||"UA",qtd:g("qtd"),sap:g("sap"),cu:g("cu"),cl:g("cl"),pu:g("pu"),pt:g("pt"),obs:g("obs"),depto:g("depto")||"HOSPITAL"});
+    if(String(g("ass")).trim()){i.recebido=true;i.recPor=up(String(g("ass")));i.recEm=toISO(g("dt"))}
+    out.itens.push(autoFlags(i))}
+  return out;
+}
+function previewImport(p,arq){
+  const h=p.head;const kg=p.itens.filter(i=>i.ua==="KG"&&RX_MED.test(deacc(i.desc)));
+  const ct={id:uid(),tag:"",embalagem:up(String(h.embalagem||"")),tipo:up(String(h.tipo||"")),eslinga:up(String(h.eslinga||"")),tara:num(h.tara),sap:up(String(h.sap||"")),vencimento:toISO(h.vencimento),selo:up(String(h.selo||"")),guindaste:true,status:"NA BASE"};
+  const dm=String(h.dim||"").replace(/,/g,".").match(/([\d.]+)\s*[X×]\s*([\d.]+)(?:\s*[X×]\s*([\d.]+))?/i);if(dm){ct.comp=+dm[1];ct.larg=+dm[2];if(dm[3])ct.alt=+dm[3]}
+  if(!ct.embalagem)ct.embalagem="CESTA";
+  const m={id:"",codigo:h.codigo||proxCodigo(),data:h.data||hojeSP(),sentido:"EMBARQUE",de:up(String(h.de||"")),para:up(String(h.para||"SAYAN POLARIS")),responsaveis:up(String(h.responsaveis||"")),telefones:up(String(h.telefones||"")),
+    rt:up(String(h.rt||"")),nf:up(String(h.nf||"")),transportadora:up(String(h.transportadora||"")),cte:up(String(h.cte||"")),obs:"",status:"RASCUNHO",contentores:[ct],itens:p.itens.map(i=>Object.assign(i,{ct:ct.id})),hist:[],criadoEm:new Date().toISOString()};
+  const ex=vivos().find(o=>o.codigo===m.codigo);const t=totals(m);
+  openModal("Importar "+arq,`<div class="pad">
+    <p><b>${esc(m.codigo)}</b> de ${fmtD(m.data)} · ${esc(m.de)} → ${esc(m.para)} · <b>${t.linhas}</b> linhas · <b>${nf(t.itens)} kg</b> · <b>${brl(t.valor)}</b></p>
+    ${ex?`<p class="al">Já existe o manifesto ${esc(m.codigo)} (${esc(ex.status)}). Importar vai substituir as linhas dele.</p>`:""}
+    <div class="form" style="padding:0"><label>TAG do contentor<input id="ip-tag" placeholder="GRAN CT 003"></label><label>Sentido<select id="ip-sent">${opt(SENTIDOS,"EMBARQUE")}</select></label>
+    ${kg.length?`<label class="ck wide"><input type="checkbox" id="ip-kg" checked> Corrigir unidade KG → UA em ${kg.length} linha(s) de medicamento (${esc(kg.map(i=>i.desc).join("; "))})</label>`:""}</div>
+    ${previewTable(m.itens,m)}
+    <div class="actions" style="display:flex;gap:8px"><button class="btn primary" id="ip-ok"${!m.itens.length?" disabled":""}>Gravar manifesto</button><span class="hint">${m.itens.length?"Confira os alertas antes de gravar; dá para corrigir depois.":"Nenhuma linha de MATERIAIS encontrada na planilha."}</span></div></div>`,true);
+  $("#ip-ok").onclick=async()=>{ct.tag=normTag(fv("ip-tag"));m.sentido=fv("ip-sent");
+    const o=dupTag(ct.tag,ex&&ex.id);if(o){toast(`TAG ${ct.tag} já está no manifesto aberto ${o.codigo}.`);return}
+    if(fv("ip-kg"))kg.forEach(i=>i.ua="UA");
+    let n;if(ex){n=clone(ex);n.itens=m.itens.map(i=>Object.assign(i,{ct:(n.contentores[0]||ct).id}));if(!n.contentores.length)n.contentores=[ct];logH(n,`linhas substituídas pela importação de ${arq}`)}
+    else{n=m;n.id="m-"+m.codigo;n.criadoPor=quem();logH(n,"importado de "+arq)}
+    if(await persist(n)){closeModal();state.open=n.id;render()}};
+}
+
+/* ================= exemplo real 047-2026 (com as correções combinadas) ================= */
+const EX_ITENS=`POL12475|4500090170|DIGITAL SCALE CALIBRATION|UA|2|SERVICE|1012|2024|3|6|HOSPITAL
+POL12475|4500090170|CERTIFICADOS DIGITAL SCALE CALIBRATION|UA|1|SERVICE|1|1|1|1|HOSPITAL
+POL12486|4500090207|DETECTOR DE METAIS SUPERSCANNER GARRET|UA|2|20911283|57.9|115.8|1|2|SHIP
+VERBAL|FRATELLI|CAFÉ EM GRÃOS|KG|100|SERVICE|100|10000|1|100|SHIP
+POL12493|4500090295|REFRIGERADOR VERTICAL GPTU-40 - GELOPAR|UA|1|20918353|6341.01|6341.01|98|98|HOSPITAL
+POL12479|4500090275|ÁCIDO ACETIL SALICÍLICO|UA|1|20928788|7.26|7.26|1|1|HOSPITAL
+POL12479|4500090275|NEOSALDINA|UA|10|20936926|37.94|379.4|1|10|HOSPITAL
+POL12479|4500090275|PARACETAMOL|UA|1|20928828|8.9|8.9|1|1|HOSPITAL
+POL12479|4500090275|ACERATUM (PEROXIDO DE CARBAMIDA 100MG-ML|UA|1|20949443|27.7|27.7|1|1|HOSPITAL
+POL12479|4500090275|REPOFLOR 200MG 06 CAPSULAS|UA|10|20940398|29.81|298.1|1|1|HOSPITAL
+POL12479|4500090275|TORSILAX 30CPR|UA|10|20936283|18.5|185|1|10|HOSPITAL
+POL12479|4500090275|TRIANCINOLONA ACETONIDA 1MG/G|UA|5|20936327|7.6|38|1|5|HOSPITAL
+POL12479|4500090275|PREDNISOLONA 20 MG|UA|4|20950853|8.01|32.04|1|4|HOSPITAL
+POL12479|4500090275|SULFATO DE MAGNESIO 50 %|UA|10|20949503|1.89|18.9|1|10|HOSPITAL
+POL12479|4500090275|ACIDO TRANEXAMICO 250MG 12 CPRS|UA|10|20952226|62.37|623.7|1|10|HOSPITAL
+POL12479|4500090275|BROMAZEPAM 3MG 30CPR B1|UA|1|20932272|6.37|6.37|1|1|HOSPITAL
+POL12479|4500090275|CLORIDRATO DE CLONIDINA (ATENSINA)|UA|1|20949446|17.27|17.27|1|1|HOSPITAL
+POL12479|4500090275|ADENOSINA AMP 2ML - 6MG/L|UA|10|20934734|26.38|263.8|1|10|HOSPITAL
+POL12479|4500090275|HALOPERIDOL|UA|5|20928811|10.31|51.55|1|5|HOSPITAL
+POL12479|4500090275|BICARBONATO DE SODIO 8,4% SOL INJ AMPOLA|UA|10|20932271|1.65|16.5|1|10|HOSPITAL
+POL12479|4500090275|BROMOPRIDA 5MG/ML INJ AMPOLA 2ML|UA|10|20932274|2.77|27.7|1|10|HOSPITAL
+POL12479|4500090275|BUSCOPAN SIMPLES / AMPOLA|UA|10|20942817|2.42|24.2|1|10|HOSPITAL
+POL12479|4500090275|BUSCOPAN COMPOSTO / AMPOLA|UA|10|20942818|4.93|49.3|1|10|HOSPITAL
+POL12479|4500090275|PROMETAZINA SOLUÇÃO INJETAVEL|UA|5|20943039|7.17|35.85|1|5|HOSPITAL
+POL12479|4500090275|VITAMINA K|UA|10|20928836|5.03|50.3|1|10|HOSPITAL
+POL12479|4500090275|INSULINA NOVOLIN HUM R 100 UI 10ML|UA|2|20936300|92.14|184.28|1|2|HOSPITAL
+POL12479|4500090275|PLASIL INJETÁVEL|UA|10|20942364|2.47|24.7|1|10|HOSPITAL
+POL12479|4500090275|BEROTEC|UA|1|20937600|46.4|46.4|1|1|HOSPITAL
+POL12479|4500090275|SORO RINGER SIMPLES 500ML FRASCO|UA|10|20932360|10.14|101.4|1|10|HOSPITAL
+POL12479|4500090275|INDALCOOL 70% 1L ANTISSEPTICO|UA|5|20936226|9.73|48.65|1|5|HOSPITAL
+POL12479|4500090275|CURATIVO HIDROCOLOIDE STANDARD 20X20CM|UA|1|20932068|57.37|57.37|1|1|HOSPITAL
+POL12479|4500090275|KIT RETIRADA DE PONTOS|UA|5|20932088|36.28|181.4|1|5|HOSPITAL
+POL12479|4500090275|SERINGA 3ML S/AGULHA DISP SEGURANÇA LUER|UA|100|20932128|0.67|67|1|100|HOSPITAL
+POL12479|4500090275|TIRAS PARA CONTROLE DE GLICEMIA ACCU-CHE|UA|100|20941167|2.79|279|1|100|HOSPITAL
+POL12479|4500090275|SORO FISIOLOGIOCO 0,9% 100ML EXTERNO|UA|10|20932300|3.76|37.6|1|10|HOSPITAL
+POL12479|4500090275|SERINGA DE 1 ML COM AGULHA|UA|100|20937790|0.78|78|1|100|HOSPITAL
+POL12479|4500090275|ATROVENT|UA|1|20936344|3.36|3.36|1|1|HOSPITAL
+POL12479|4500090275|CAPTOPRIL 25MG 30 CPR|UA|1|20932281|3.08|3.08|1|1|HOSPITAL
+POL12479|4500090275|CEFALEXINA 500MG 10 CPR|UA|1|20936759|10.9|10.9|1|1|HOSPITAL
+POL12479|4500090275|XAROPE IODETO DE POTÁSSIO|UA|3|20940917|33.61|100.83|1|3|HOSPITAL
+POL12479|4500090275|MECLIN|UA|2|20949479|28.79|57.58|1|2|HOSPITAL
+POL12479|4500090275|MONURIL ( FOSFOMICINA TROMETAMOL ) SACHÊ|UA|4|20948639|82.92|331.68|1|4|HOSPITAL`;
+function exemplo(){
+  const ct={id:uid(),tag:"GRAN CT 003",embalagem:"CESTA",tipo:"CESTA ABERTA OFFSHORE",eslinga:"",tara:null,sap:"",comp:null,larg:null,alt:null,vencimento:"",selo:"N/A",guindaste:true,caixaTermica:false,status:"NA BASE"};
+  const K=["pr","po","desc","ua","qtd","sap","cu","cl","pu","pt","depto"];
+  const itens=EX_ITENS.split("\n").map(l=>{const o={ct:ct.id};l.split("|").forEach((v,j)=>o[K[j]]=v);return fixItem(o)});
+  itens.forEach(i=>{if(/BROMAZEPAM|HALOPERIDOL/.test(i.desc))i.controlado=true;if(/INSULINA/.test(i.desc)){i.refrig=true;i.temp="2 A 8 °C"}if(/REFRIGERADOR/.test(i.desc))i.obs="SEGUE EM PÉ, PEADO À CESTA"});
+  const m={id:"m-047-2026",codigo:"047-2026",data:"2026-10-02",sentido:"EMBARQUE",de:"BASE GRANENERGIA - MACAÉ",para:"SAYAN POLARIS",responsaveis:"AMARO GORDIANO / JAIME JANDRE / ARTHUR CARRILLO",telefones:"22 99441671 / 22 992788703",
+    rt:"",nf:"",transportadora:"",cte:"",obs:"",status:"RASCUNHO",contentores:[ct],itens,hist:[],criadoEm:new Date().toISOString(),criadoPor:quem()};
+  logH(m,"manifesto real 047-2026 carregado (refrigerador 98 kg; ácido tranexâmico em UA; REPOFLOR mantido como item leve)");return m;
+}
+$("#b-exemplo").onclick=async()=>{const m=exemplo();if(await persist(m)){state.open=m.id;render()}};
+
+/* ================= impressão e Excel no layout do formulário ================= */
+function printM(m){
+  const c=m.contentores[0]||{};const t=totals(m);const tags=m.contentores.map(x=>x.tag).join(" / ");
+  const L=(a,b)=>`<td class="lb">${a}</td><td>${esc(b??"")}</td>`;
+  $("#print").innerHTML=`
+    <table class="hd"><tr><td class="lb" style="width:8%">CÓDIGO<br><i>CODE</i></td><td class="codecell" colspan="3">${esc(m.codigo)} =&gt; ${fmtD(m.data)}</td><td colspan="4" class="c"><b>${esc(m.sentido)}</b> · TAG <b>${esc(tags)}</b> · ${esc(m.status)}</td></tr></table><br>
+    <table class="hd"><tr><th colspan="2">LOGÍSTICA</th><th colspan="4">CONTENTOR</th><th colspan="2">TRANSPORTE</th></tr>
+      <tr>${L("DE",m.de)}${L("EMBALAGEM",c.embalagem)}${L("TIPO",c.tipo)}${L("RT",m.rt)}</tr>
+      <tr>${L("PARA",m.para)}${L("ESLINGA",c.eslinga)}${L("DIMENSÃO",c.comp?`${nf(c.comp)} × ${nf(c.larg)}${c.alt?" × "+nf(c.alt):""} m`:"")}${L("NOTA FISCAL",m.nf)}</tr>
+      <tr>${L("RESPONSÁVEL",m.responsaveis)}${L("TARA",c.tara!=null?nf(c.tara)+" kg":"")}${L("DATA VENCIMENTO",fmtD(c.vencimento))}${L("TRANSPORTADORA",m.transportadora)}</tr>
+      <tr>${L("TELEFONE",m.telefones)}${L("NÚMERO SAP",c.sap)}${L("SELO",c.selo)}${L("CT-E",m.cte)}</tr></table><br>
+    <table class="mt"><thead><tr><th colspan="11">MATERIAIS | MATERIALS</th><th colspan="3">RECEPTOR | RECEIVING</th></tr>
+      <tr><th>PR MÁXIMO</th><th>PO SAP</th><th>DESCRIÇÃO</th><th>UA</th><th>QTD</th><th>ITEM SAP</th><th>CUSTO UNIT</th><th>CUSTO LINHA</th><th>PESO UNID KG</th><th>PESO TOTAL</th><th>OBSERVAÇÃO</th><th>DEPARTAMENTO</th><th>ASSINATURA</th><th>DATA</th></tr></thead>
+      <tbody>${m.itens.map(i=>`<tr><td class="c">${esc(i.pr)}</td><td class="c">${esc(i.po)}</td><td>${esc(i.desc)}</td><td class="c">${esc(i.ua)}</td><td class="c">${nf(i.qtd)}</td><td class="c">${esc(i.sap)}</td><td class="r">${brl(i.cu)}</td><td class="r">${brl(i.cl)}</td><td class="c">${nf(i.pu)}</td><td class="c">${nf(i.pt)}</td><td>${esc([i.controlado?"CONTROLADO":"",i.refrig?"REFRIGERADO "+i.temp:"",i.obs].filter(Boolean).join(" · "))}</td><td class="c">${esc(i.depto)}</td><td class="c">${i.recebido?esc(i.recPor):""}</td><td class="c">${i.recebido?fmtD(i.recEm):""}</td></tr>`).join("")}
+      <tr><td colspan="7" class="r"><b>TOTAL</b></td><td class="r"><b>${brl(t.valor)}</b></td><td></td><td class="c"><b>${nf(t.itens)}</b></td><td colspan="4">Peso bruto ${nf(t.bruto)} kg${t.tara?" (inclui tara "+nf(t.tara)+" kg)":" (sem tara)"} · ${t.linhas} linhas</td></tr></tbody></table>
+    <div class="sig"><div>Emitente (base)</div><div>Comandante / Imediato</div><div>Responsável a bordo</div></div>`;
+  window.print();
+}
+function exportXls(m){
+  const c=m.contentores[0]||{};const t=totals(m);
+  const A=[["CÓDIGO",`${m.codigo} => ${fmtD(m.data)}`,"","SENTIDO",m.sentido,"TAG",m.contentores.map(x=>x.tag).join(" / "),"STATUS",m.status],[],
+    ["LOGÍSTICA","","CONTENTOR","","","","TRANSPORTE"],
+    ["DE",m.de,"EMBALAGEM",c.embalagem||"","TIPO",c.tipo||"","RT",m.rt],
+    ["PARA",m.para,"ESLINGA",c.eslinga||"","DIMENSÃO",c.comp?`${c.comp} x ${c.larg}${c.alt?" x "+c.alt:""}`:"","NOTA FISCAL",m.nf],
+    ["RESPONSÁVEL",m.responsaveis,"TARA",c.tara??"","DATA VENCIMENTO",fmtD(c.vencimento),"TRANSPORTADORA",m.transportadora],
+    ["TELEFONE",m.telefones,"NÚMERO SAP",c.sap||"","SELO",c.selo||"","CTE",m.cte],[],
+    ["MATERIAIS","","","","","","","","","","","RECEPTOR"],
+    ["PR MÁXIMO","PO SAP","DESCRIÇÃO","UA","QTD","ITEM SAP","CUSTO UNIT","CUSTO LINHA","PESO UNID KG","PESO TOTAL","OBSERVAÇÃO","DEPARTAMENTO","ASSINATURA","DATA"],
+    ...m.itens.map(i=>[i.pr,i.po,i.desc,i.ua,i.qtd,i.sap,i.cu,i.cl,i.pu,i.pt,[i.controlado?"CONTROLADO":"",i.refrig?"REFRIGERADO "+i.temp:"",i.obs].filter(Boolean).join(" · "),i.depto,i.recebido?i.recPor:"",i.recebido?fmtD(i.recEm):""]),
+    ["","","TOTAL","","","","",t.valor,"",t.itens]];
+  const ws=XLSX.utils.aoa_to_sheet(A);ws["!cols"]=[12,13,44,5,6,11,11,12,8,9,30,14,22,11].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Manifesto");XLSX.writeFile(wb,`Cargo Manifesto ${m.codigo}.xlsx`);
+}
+
+/* ================= rastreio por TAG ================= */
+function renderRastreio(){
+  const q=$("#qt").value.trim();const box=$("#rastro");if(!q){box.innerHTML='<div class="empty">Digite uma TAG para ver a linha do tempo.</div>';return}
+  const K=key(q);const ms=vivos().filter(m=>m.contentores.some(c=>key(c.tag)===K)).sort((a,b)=>(a.data||"").localeCompare(b.data||""));const dk=deckOf(q);
+  if(!ms.length&&!dk){box.innerHTML=`<div class="empty">Nenhum manifesto ou carga do Deck com a TAG ${esc(normTag(q))}.</div>`;return}
+  const ev=[];for(const m of ms){const c=m.contentores.find(x=>key(x.tag)===K);ev.push({em:m.data,h:`<span class="pill mv">${esc(m.sentido)}</span>`,t:`<button class="mlink" data-open="${esc(m.id)}">${esc(m.codigo)}</button> · ${esc(m.de)} → ${esc(m.para)} · <span class="st ${stc(m.status)}">${esc(m.status)}</span> · contentor ${esc(c.status||"NA BASE")} · ${totals(m).linhas} linhas`});
+    for(const h of (m.hist||[]))if(/status|contentor|recebimento|importado|criado/i.test(h.txt))ev.push({em:h.em,h:'<span class="pill on" style="background:var(--line);color:var(--ink)">'+esc(m.codigo)+'</span>',t:`${esc(h.txt)} <span class="hint">· ${esc(h.por)} · ${fmtDT(h.em)}</span>`})}
+  ev.sort((a,b)=>String(b.em).localeCompare(String(a.em)));
+  box.innerHTML=`${dk?`<div class="deckref ok" style="margin:16px 16px 0"><b>Deck Cargo Plan:</b> ${esc(dk.c.tag)} · ${dk.c.qtd===1?"<b>A BORDO</b>":"fora de bordo"} · local ${esc(dk.c.local||"—")} · eslinga ${esc(dk.c.eslinga||"—")} · venc. ${fmtD(dk.c.vencimento)||"—"} · responsável ${esc(dk.c.responsavel||"—")} <a class="rowbtn" href="index.html?tag=${encodeURIComponent(dk.c.tag)}" style="text-decoration:none">Abrir no Deck</a></div>`:""}
+    <div class="tlm">${ev.map(e=>`<div class="ev"><span class="hhmm">${fmtD(String(e.em).slice(0,10))}</span>${e.h}<span>${e.t}</span></div>`).join("")||'<div class="empty">Sem manifestos com essa TAG.</div>'}</div>`;
+}
+$("#qt").oninput=renderRastreio;
+
+/* ================= navegação ================= */
+function setTab(t){state.tab=t;document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));if(t!=="lista")state.open=null;render()}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+document.querySelectorAll(".chip[data-f]").forEach(b=>b.onclick=()=>{state.f=b.dataset.f;document.querySelectorAll(".chip[data-f]").forEach(x=>x.setAttribute("aria-pressed",x===b));render()});
+$("#q").oninput=e=>{state.q=e.target.value;renderList()};
+$("#b-novo").onclick=()=>{if(!state.canWrite){toast("Entre com uma conta aprovada para criar manifestos.");return}novo()};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-open]");if(b){state.tab="lista";document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab==="lista"));state.open=b.dataset.open;try{history.replaceState(null,"","?m="+encodeURIComponent(state.ms.get(b.dataset.open)?.codigo||""))}catch(err){}render();window.scrollTo(0,0)}});
+function render(){
+  renderKpis();if(state.local)$("#baseinfo").textContent=`${vivos().length} manifesto(s) neste navegador`;
+  const det=state.tab==="lista"&&state.open&&state.ms.has(state.open);
+  $("#p-lista").hidden=state.tab!=="lista"||det;$("#p-det").hidden=!det;$("#p-rastreio").hidden=state.tab!=="rastreio";
+  $("#b-novo").disabled=$("#b-imp").disabled=!state.canWrite;
+  if(det)renderDet();else if(state.tab==="lista")renderList();else renderRastreio();
+}
+
+/* ================= tema (mesma chave do Deck) ================= */
+const RT=document.documentElement;try{const sv=localStorage.getItem("dcp-theme");if(sv==="light"||sv==="dark")RT.setAttribute("data-theme",sv)}catch(e){}
+$("#b-theme").onclick=()=>{const dark=RT.getAttribute("data-theme")==="dark"||(!RT.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme: dark)").matches);const nv=dark?"light":"dark";RT.setAttribute("data-theme",nv);try{localStorage.setItem("dcp-theme",nv)}catch(e){}};
+
+/* ================= acesso (mesmos perfis do Deck: admin / usuário aprovado / visitante) ================= */
+const ROLE_TXT={admin:"Administrador",usuario:"Usuário",pendente:"Aguardando aprovação",recusado:"Acesso recusado",visitante:"Visitante · só leitura",local:"Modo local · este navegador"};
+function computeRole(){
+  const p=state.perfil;
+  if(state.local){state.role="local";state.canWrite=true;state.isAdmin=true}
+  else if(!state.user){state.role="visitante";state.canWrite=false}
+  else if(!p||p.status==="pendente"){state.role="pendente";state.canWrite=false}
+  else if(p.status==="recusado"){state.role="recusado";state.canWrite=false}
+  else{state.role=p.papel==="admin"?"admin":"usuario";state.canWrite=true}
+  if(!state.local)state.isAdmin=state.role==="admin";
+  const el=$("#role");el.className="role "+(state.role==="admin"||state.role==="local"?"owner":state.role==="usuario"?"editor":"");el.textContent=ROLE_TXT[state.role];
+  $("#b-login").textContent=state.user?"Sair":"Entrar";$("#b-login").hidden=state.local&&!sb;
+  const ro=$("#ro");ro.hidden=state.canWrite;ro.textContent=state.role==="pendente"?"Seu cadastro aguarda a aprovação de um administrador.":state.role==="recusado"?"Seu acesso de edição foi recusado.":"Os manifestos só aparecem para usuários aprovados. Entre com a mesma conta do Deck Cargo Plan.";
+  render();
+}
+function abrirLogin(){openModal("Entrar",`<form class="form" id="f-login" style="padding-top:16px"><label class="wide">E-mail<input id="l-email" type="email" required autocomplete="username"></label><label class="wide">Senha<input id="l-senha" type="password" required autocomplete="current-password"></label>
+  <div class="actions"><button class="btn primary">Entrar</button><span class="hint">Mesma conta do Deck Cargo Plan. Para criar conta ou trocar a senha, use o <a href="index.html">Deck Cargo Plan</a>.</span></div></form>`);
+  $("#f-login").onsubmit=async e=>{e.preventDefault();const {error}=await sb.auth.signInWithPassword({email:fv("l-email").trim(),password:fv("l-senha")});if(error)toast("Não foi possível entrar: "+error.message);else closeModal()}}
+$("#b-login").onclick=async()=>{if(!sb)return;if(state.user){await sb.auth.signOut();toast("Você saiu.")}else abrirLogin()};
+
+function modoLocal(motivo){
+  state.local=true;state.ms=localLoad();
+  const lb=$("#localbar");lb.hidden=false;lb.innerHTML=`<b>Modo local:</b> ${esc(motivo)} Os manifestos ficam gravados só neste navegador até a tabela <code>manifestos</code> ser criada no Supabase (arquivo <code>schema-manifestos.sql</code>).`;
+  $("#baseinfo").textContent=`${vivos().length} manifesto(s) neste navegador`;computeRole();
+}
+async function carregarManifestos(){
+  try{state.ms=await loadAll("manifestos");state.local=false;$("#localbar").hidden=true;$("#baseinfo").textContent=`${vivos().length} manifesto(s) · banco Supabase do Deck Cargo Plan`;render()}
+  catch(e){if(/does not exist|schema cache|relation|PGRST205|42P01/i.test(e.message||e.code||""))modoLocal("a tabela de manifestos ainda não existe no banco.");else{$("#baseinfo").textContent="Erro ao ler manifestos: "+(e.message||e);render()}}
+}
+async function aplicarSessao(session){
+  state.user=session?session.user:null;state.perfil=null;
+  if(state.user){const {data}=await sb.from("perfis").select("*").eq("id",state.user.id).maybeSingle();state.perfil=data||null}
+  if(!state.local)await carregarManifestos();computeRole();
+}
+
+(async()=>{
+  render();
+  if(!window.supabase||!CFG.supabaseUrl||!CFG.supabaseAnonKey||/COLE_AQUI/.test(CFG.supabaseUrl)){modoLocal("o site não está conectado ao banco (config.js).");return}
+  try{
+    sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    sb.auth.onAuthStateChange((ev,session)=>{setTimeout(()=>aplicarSessao(session),0)});
+    const {data:{session}}=await sb.auth.getSession();await aplicarSessao(session);
+    /* cargas do Deck: só leitura, para casar a TAG (eslinga, vencimento, medidas, local atual) */
+    loadAll("cargas").then(m=>{state.cargas=new Map([...m].filter(([,c])=>c&&!c.excluido));render()}).catch(()=>{});
+    sb.channel("mft-manifestos").on("postgres_changes",{event:"*",schema:"public",table:"manifestos"},p=>{if(state.local)return;if(p.eventType==="DELETE")state.ms.delete(p.old.id);else if(p.new&&p.new.id)state.ms.set(p.new.id,p.new.data);render()}).subscribe();
+    const qm=new URLSearchParams(location.search).get("m");if(qm){const m=vivos().find(x=>x.codigo===qm);if(m){state.open=m.id;render()}}
+  }catch(e){modoLocal("sem conexão com o banco.")}
+})();
+})();
+</script>
+</body>
+</html>
