@@ -122,6 +122,12 @@ td.acts{white-space:nowrap}td.acts .rowbtn+.rowbtn{margin-left:4px}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
 .pad{padding:16px}
+.colar textarea{width:100%;min-height:110px;font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);padding:8px}
+.colar .mapa{display:flex;flex-wrap:wrap;gap:6px 10px;margin:10px 0}.colar .mapa label{display:grid;gap:2px;font-size:11px;color:var(--muted);max-width:170px}
+.colar .mapa select{font-size:12px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
+.colar .prevw{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:6px}.colar table{font-size:12px;width:100%}.colar td,.colar th{padding:4px 6px;vertical-align:top}
+.colar .nova{color:var(--ok);font-weight:700}.colar .upd{color:var(--accent);font-weight:700}.colar .ign{color:var(--muted)}.colar .chg{white-space:normal;min-width:260px}.colar .chg s{color:var(--muted)}
+.colar .opts{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:10px 0}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
 .bar .group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .chip{border:1px solid var(--line);background:var(--panel);padding:5px 10px;border-radius:999px;font-size:13px}
@@ -311,6 +317,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
           <button type="button" class="search msbtn" id="f-cols-b" aria-haspopup="true" aria-expanded="false"><span id="f-cols-l">Todas</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
           <div class="mspop" id="f-cols-p" hidden></div></div>
         <button class="btn" id="b-cols" type="button">Expandir colunas</button>
+        <button class="btn" id="b-colar" type="button">Colar planilha</button>
         <button class="btn" id="b-import">Importar Excel</button>
         <input type="file" id="f-import" accept=".xlsx,.xlsm" hidden>
       </div>
@@ -1042,6 +1049,116 @@ document.addEventListener("click",e=>{const a=e.target.closest("[data-pxok]");if
 
 
 /* ---------- importar Excel ---------- */
+
+/* ---------- colar planilha: reconhece as colunas pelo cabeçalho (ou pelo conteúdo) e padroniza os valores ---------- */
+const deac=s=>String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/\s+/g," ").trim();
+const nk=s=>deac(s).replace(/[^A-Z0-9]/g,"");
+const CP_CAMPOS=[["","(ignorar)"],["tag","TAG"],["eslinga","Eslinga"],["vencimento","Vencimento"],["destino","Destino"],["peso","Peso (kg)"],["comp","Comprimento (m)"],["larg","Largura (m)"],
+ ["ufEmb","UF Embarque"],["ufDes","UF Desembarque"],["qtd","A bordo (QTD)"],["size","Size (m²)"],["dataReceb","Data de recebimento"],["local","Local atual"],["retorno","Previsão de retorno"],
+ ["responsavel","Responsável"],["origemUnidade","Origem (de onde veio)"],["historico","Movimentações"],["obs","Observações"]];
+/* sinônimos de cabeçalho (sem acento, maiúsculas); o mais específico ganha */
+const CP_SIN=[["ultimaMov",["ULTIMA MOV","DATA ULTIMA"]],["dataReceb",["DATA DE RECEBIMENTO","DATA RECEB","RECEBIMENTO","RECEBIDO EM","DATA DE CHEGADA","CHEGADA","DATA ENTRADA","DATA"]],
+ ["vencimento",["VENCIMENTO","VALIDADE","VENC","EXPIRY","VALID"]],["ufEmb",["UF EMB","UF DE EMB","UF EMBARQUE","EMBARQUE"]],["ufDes",["UF DES","UF DE DES","UF DESEMBARQUE","DESEMBARQUE"]],
+ ["historico",["MOVIMENTA","HISTORICO","MOVEMENT"]],["eslinga",["ESLINGA","SLING","LINGA","CERTIFICADO"]],["tag",["TAG","IDENTIFICACAO","CONTENTOR","CONTAINER","CONTEINER","EQUIPAMENTO"]],
+ ["destino",["DESTINO","DESTINATION","PARA","VAI PARA"]],["origemUnidade",["ORIGEM","PROCEDENCIA","VEIO DE","FROM","DE ONDE"]],["peso",["PESO","WEIGHT","KG"]],["comp",["COMPRIMENTO","COMP","LENGTH","C (M)"]],
+ ["larg",["LARGURA","LARG","WIDTH","L (M)"]],["qtd",["QTD","QUANTIDADE","A BORDO","QTY"]],["size",["SIZE","AREA","M2","M²"]],["local",["LOCAL","LOCALIZACAO","POSICAO","ONDE ESTA","LOCATION"]],
+ ["retorno",["RETORNO","PREVISAO"]],["responsavel",["RESPONSAVEL","RESPONSABLE","EMPRESA","DONO","PROPRIETARIO","CLIENTE","OWNER","RESP"]],["obs",["OBS","OBSERVA","NOTA","REMARK","COMENTARIO"]]];
+function cpCampoDoCab(h){const H=deac(h);if(!H)return"";let best="",bl=0;
+  for(const [k,ss] of CP_SIN)for(const x of ss){if(H===x)return k==="ultimaMov"?"":k;if(H.includes(x)&&x.length>bl){best=k;bl=x.length}}
+  return best==="ultimaMov"?"":best}
+const RX_TAGV=/^[A-Z]{2,}[\s.\/-]*\d{2,}/;
+function cpData(v){if(v==null||v==="")return null;const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if(m){const y=m[3].length===2?"20"+m[3]:m[3];return `${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`}
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];
+  if(/^\d{5}(\.\d+)?$/.test(s)){const n=+s;if(n>30000&&n<70000)return new Date(Math.round((n-25569)*864e5)).toISOString().slice(0,10)}return null}
+function cpNum(v){if(v==null||v==="")return null;let s=String(v).replace(/\s|kg|m²|m2|m$/gi,"");if(!s)return null;
+  if(/,\d{1,3}$/.test(s)||(s.includes(",")&&!s.includes(".")))s=s.replace(/\./g,"").replace(",",".");else if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,"");else s=s.replace(/,/g,"");
+  const n=parseFloat(s);return isNaN(n)?null:n}
+/* responsável e locais: casa com os nomes que já existem no site (ex.: "Mota Engil" → MOTA, "TLT P62" → TLT P-62) */
+const CP_RESP_ALIAS=[[/MOTA/,"MOTA"],[/FRATELL/,"FRATELLI"],[/GRAN ?ENERGIA|^GRAN$|GC OPERA|^GC\b/,"GC"],[/MANSERV/,"MANSERV"],[/\bUTC\b/,"UTC"]];
+function cpResp(v){const V=deac(v);if(!V)return null;const K=nk(V);
+  /* entre grafias equivalentes, usa a mais frequente no site */
+  const freq=new Map();for(const c of state.cargas.values()){const r=String(c.responsavel||"").replace(/\s+/g," ").trim().toUpperCase();if(r)freq.set(r,(freq.get(r)||0)+1)}
+  const lista=[...freq.keys()].sort((a,b)=>freq.get(b)-freq.get(a));
+  let hit=lista.find(x=>nk(x)===K);if(hit)return hit;
+  for(const [re,alvo] of CP_RESP_ALIAS)if(re.test(V)){const h=lista.find(x=>nk(x)===nk(alvo))||lista.find(x=>nk(x).startsWith(nk(alvo)));return h||alvo}
+  hit=lista.filter(x=>nk(x).length>=3&&(K.includes(nk(x))||nk(x).includes(K))).sort((a,b)=>nk(b).length-nk(a).length)[0];
+  return hit||V}
+function cpLugar(v){let V=deac(v);if(!V)return null;V=V.replace(RX_BPORT,"PACU");if(/POLARIS|SAYAN/.test(V))return "SAYAN POLARIS";
+  V=V.replace(/^P-?\s?(\d{2})$/,"P-$1");const L=lugaresHist();const h=L.find(x=>nk(x)===nk(V));return h||V}
+function cpQtd(v){const V=deac(v);if(!V)return undefined;if(/^(1|SIM|S|X|A BORDO|YES|Y|ON BOARD)$/.test(V))return 1;if(/^(0|NAO|N|NO|FORA|-)$/.test(V))return null;return undefined}
+function cpValor(k,v){if(v==null)return undefined;const s=String(v).trim();if(!s)return undefined;
+  switch(k){case"peso":case"comp":case"larg":case"size":{const n=cpNum(s);return n==null?(k==="peso"?s.toUpperCase():undefined):n}
+    case"dataReceb":case"vencimento":return cpData(s)||undefined;case"qtd":return cpQtd(s);case"responsavel":return cpResp(s);
+    case"local":case"destino":case"origemUnidade":return cpLugar(s);case"tag":return s.replace(/\s+/g," ").toUpperCase();
+    case"historico":return s.replace(/\r/g,"").toUpperCase();default:return s.replace(/\s+/g," ").toUpperCase()}}
+function cpLer(txt){const linhas=txt.replace(/\r/g,"").split("\n").filter(l=>l.trim());if(!linhas.length)return null;
+  /* aceita colunas separadas por TAB (Excel), ponto e vírgula ou vários espaços */
+  const sep=linhas[0].includes("\t")?"\t":linhas[0].includes(";")?";":/ {2,}/;const rows=linhas.map(l=>l.split(sep).map(x=>x.trim()));
+  const n=Math.max(...rows.map(r=>r.length));rows.forEach(r=>{while(r.length<n)r.push("")});
+  const cab=rows[0].map(cpCampoDoCab);const temCab=cab.filter(Boolean).length>=2||(cab.filter(Boolean).length>=1&&!rows[0].some(x=>RX_TAGV.test(deac(x))));
+  let mapa=temCab?cab:Array(n).fill("");const dados=temCab?rows.slice(1):rows;
+  if(!temCab){/* sem cabeçalho: deduz pelo conteúdo */
+    const score=(c,f)=>dados.filter(r=>f(r[c])).length/Math.max(1,dados.length);let usados=new Set();
+    const tagc=[...Array(n).keys()].sort((a,b)=>score(b,v=>RX_TAGV.test(deac(v)))-score(a,v=>RX_TAGV.test(deac(v))))[0];if(score(tagc,v=>RX_TAGV.test(deac(v)))>.5){mapa[tagc]="tag";usados.add("tag")}
+    const datas=[...Array(n).keys()].filter(c=>mapa[c]===""&&score(c,v=>!!cpData(v))>.5);if(datas[0]!=null)mapa[datas[0]]="dataReceb";if(datas[1]!=null)mapa[datas[1]]="vencimento";
+    [...Array(n).keys()].forEach(c=>{if(mapa[c])return;if(score(c,v=>/POLARIS|SAYAN|^P-?\d{2}$|PACU|BMAC|UMVV/.test(deac(v)))>.5&&!usados.has("local")){mapa[c]="local";usados.add("local")}
+      else if(score(c,v=>{const V=deac(v);return V&&respsHist().some(x=>nk(x)===nk(V))||CP_RESP_ALIAS.some(([re])=>re.test(V))})>.5&&!usados.has("responsavel")){mapa[c]="responsavel";usados.add("responsavel")}})}
+  /* mesma coluna duas vezes: fica só a primeira */
+  const vis=new Set();mapa=mapa.map(k=>{if(!k)return"";if(vis.has(k))return"";vis.add(k);return k});
+  return{cab:temCab?rows[0]:rows[0].map((_,i)=>"Coluna "+(i+1)),mapa,dados}}
+function cpPlano(P,novaABordo){
+  const cur=current();const out=[];
+  const ti=P.mapa.indexOf("tag");if(ti<0)return out;
+  for(const r of P.dados){const tag=cpValor("tag",r[ti]);if(!tag)continue;
+    const vals={};P.mapa.forEach((k,i)=>{if(!k||k==="tag")return;const v=cpValor(k,r[i]);if(v!==undefined)vals[k]=v});
+    const ex=cur.get(key(tag));
+    if(ex){const old=ex.c;const chg={};for(const [k,v] of Object.entries(vals)){if(k==="historico"&&old.historico)continue;const o=old[k]??null;const ig=typeof v==="number"?Number(o)===v:(k==="responsavel"||k==="local"||k==="destino"||k==="origemUnidade")?nk(o)===nk(v):String(o??"").toUpperCase()===String(v??"").toUpperCase();if(!ig)chg[k]=[o,v]}
+      out.push({tag,id:ex.id,tipo:Object.keys(chg).length?"upd":"igual",chg,vals})}
+    else{const o=Object.assign({tag,destino:"A CONFIRMAR",obs:"A CONFIRMAR"},vals);if(o.qtd===undefined)o.qtd=o.local?(/POLARIS/.test(o.local)?1:null):(novaABordo?1:null);if(!o.dataReceb)o.dataReceb=hojeSP();
+      if(!o.origemUnidade)o.origemUnidade="A CONFIRMAR";if(o.qtd===1&&!o.local)o.local="SAYAN POLARIS";
+      if(!o.historico&&o.qtd===1){const d=o.dataReceb;o.historico=`${d.slice(8,10)}/${d.slice(5,7)} - CONVÉS POLARIS (recebida da ${o.origemUnidade})`}
+      if(!o.ultimaMov)o.ultimaMov=o.dataReceb;out.push({tag,tipo:"nova",novo:o})}}
+  return out}
+const CP_NOME=Object.fromEntries(CP_CAMPOS);
+const cpFmt=(k,v)=>v==null||v===""?"—":(k==="dataReceb"||k==="vencimento")?fmtD(v):k==="qtd"?(v===1?"A BORDO":"FORA"):typeof v==="number"?nf(v):String(v);
+$("#b-colar").onclick=()=>{if(!gate())return;
+  openModal("Colar planilha",`<div class="pad colar"><p class="hint">Copie as linhas no Excel (com ou sem a linha de cabeçalho) e cole aqui. O site reconhece cada coluna pelo nome do cabeçalho — ou pelo conteúdo — e padroniza os valores (ex.: “Mota Engil” → MOTA, “P62” → P-62, datas e números). Confira a prévia antes de aplicar.</p>
+    <textarea id="cp-txt" placeholder="Cole aqui (Ctrl+V)"></textarea>
+    <div id="cp-out"></div></div>`);
+  let P=null;const ta=$("#cp-txt");
+  const desenhar=()=>{const box=$("#cp-out");if(!P||!P.dados.length){box.innerHTML="";return}
+    const novaABordo=($("#cp-nova")||{value:"1"}).value==="1";const plano=cpPlano(P,novaABordo);
+    const nN=plano.filter(x=>x.tipo==="nova").length,nU=plano.filter(x=>x.tipo==="upd").length,nI=plano.filter(x=>x.tipo==="igual").length;
+    box.innerHTML=`<div class="mapa">${P.cab.map((h,i)=>`<label>${esc(String(h).slice(0,24))}<select data-cpi="${i}">${CP_CAMPOS.map(([k,t])=>`<option value="${k}"${P.mapa[i]===k?" selected":""}>${t}</option>`).join("")}</select></label>`).join("")}</div>
+      ${P.mapa.includes("tag")?"":'<p class="al" style="color:var(--signal)">Escolha qual coluna é a TAG.</p>'}
+      <div class="opts"><span><b>${nU}</b> carga(s) atualizada(s) · <b>${nN}</b> nova(s) · ${nI} sem mudança</span>
+        <label class="hint" style="display:flex;gap:6px;align-items:center">Cargas novas entram<select id="cp-nova" class="search" style="width:auto"><option value="1"${novaABordo?" selected":""}>a bordo do Sayan Polaris</option><option value="0"${novaABordo?"":" selected"}>fora de bordo</option></select></label></div>
+      <div class="prevw"><table><thead><tr><th><input type="checkbox" id="cp-all" checked></th><th>TAG</th><th>Ação</th><th>O que muda</th></tr></thead><tbody>${plano.map((x,j)=>`<tr>
+        <td>${x.tipo==="igual"?"":`<input type="checkbox" class="cp-ck" data-j="${j}" checked>`}</td><td class="tag">${esc(x.tag)}</td>
+        <td class="${x.tipo==="nova"?"nova":x.tipo==="upd"?"upd":"ign"}">${x.tipo==="nova"?"Nova carga":x.tipo==="upd"?"Atualizar":"Sem mudança"}</td>
+        <td class="chg">${x.tipo==="upd"?Object.entries(x.chg).map(([k,[o,v]])=>`${esc(CP_NOME[k]||k)}: <s>${esc(cpFmt(k,o))}</s> → <b>${esc(cpFmt(k,v))}</b>`).join("<br>"):x.tipo==="nova"?Object.entries(x.novo).filter(([k])=>CP_NOME[k]&&k!=="tag").map(([k,v])=>`${esc(CP_NOME[k])}: <b>${esc(cpFmt(k,v))}</b>`).join(" · "):""}</td></tr>`).join("")}</tbody></table></div>
+      <div class="actions" style="display:flex;gap:8px;margin-top:12px"><button class="btn primary" id="cp-ok"${nU+nN?"":" disabled"}>Aplicar</button><button class="btn" id="cp-no">Cancelar</button></div>`;
+    box.querySelectorAll("[data-cpi]").forEach(sl=>sl.onchange=()=>{const i=+sl.dataset.cpi;if(sl.value)P.mapa=P.mapa.map((k,j)=>j!==i&&k===sl.value?"":k);P.mapa[i]=sl.value;desenhar()});
+    $("#cp-nova").onchange=desenhar;$("#cp-no").onclick=closeModal;
+    $("#cp-all").onchange=e=>box.querySelectorAll(".cp-ck").forEach(c=>c.checked=e.target.checked);
+    $("#cp-ok").onclick=async()=>{const b=$("#cp-ok");b.disabled=true;b.textContent="Aplicando…";let ok=0,falha=0;
+      const sel=[...box.querySelectorAll(".cp-ck:checked")].map(c=>plano[+c.dataset.j]);
+      for(const x of sel){let r;
+        if(x.tipo==="upd"){const patch={};for(const [k,[,v]] of Object.entries(x.chg))patch[k]=v;
+          if("local" in patch&&!("qtd" in patch)&&patch.local)patch.qtd=/POLARIS/.test(patch.local)?1:null;
+          /* mudou de situação (a bordo ↔ fora): registra a movimentação de hoje no histórico */
+          const old=state.cargas.get(x.id)||{};if("qtd" in patch&&(patch.qtd===1)!==(old.qtd===1)){const h=hojeSP(),dm=`${h.slice(8,10)}/${h.slice(5,7)}`;
+            const u=patch.qtd===1?(patch.origemUnidade||old.local||"A CONFIRMAR"):(patch.local||patch.destino||old.destino||"A CONFIRMAR");
+            const ln=patch.qtd===1?`${dm} - CONVÉS POLARIS (recebida da ${u})`:linhaSaida(dm,u);patch.historico=ln+(old.historico?"\n"+old.historico:"");patch.ultimaMov=h;
+            if(patch.qtd===1&&!patch.local)patch.local="SAYAN POLARIS";if(patch.qtd!==1)patch.deck=null}
+          r=await save(x.id,patch,null)}
+        else{const o=Object.assign({},x.novo,{deck:null,origem:"pagina"});r=await save(newId(o.tag,o.dataReceb),o,null)}
+        r?ok++:falha++}
+      closeModal();toast(`${ok} carga(s) gravada(s) pela planilha colada.`+(falha?` ${falha} com erro.`:""))};
+  };
+  ta.oninput=()=>{P=cpLer(ta.value);desenhar()};
+};
 $("#b-import").onclick=()=>{if(gate())$("#f-import").click()};
 $("#f-import").addEventListener("change",async e=>{
   const file=e.target.files[0];e.target.value="";if(!file)return;
