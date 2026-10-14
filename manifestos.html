@@ -212,6 +212,9 @@ details.add[open] summary::before{content:"–"}
 .navlink{align-self:center;margin-left:auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--line);padding:6px 12px;border-radius:6px;background:var(--panel)}
 .navlink:hover{border-color:var(--accent)}
 .st{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;padding:2px 8px;border-radius:3px;white-space:nowrap;background:var(--line);color:var(--ink)}
+select.st.stsel{border:1px solid rgba(0,0,0,.18);cursor:pointer;padding:3px 4px;font-size:11px;max-width:100%}
+select.st.stsel:hover{border-color:var(--accent)}
+select.st.stsel option{background:var(--panel);color:var(--ink)}
 .st.s-RASCUNHO{background:var(--line-2);color:var(--muted)}
 .st.s-EMITIDO{background:#dbeafe;color:#1e3a8a}
 .st.s-EM-TRANSITO{background:#e0e7ff;color:#3730a3}
@@ -525,7 +528,7 @@ function renderList(){
   tb.innerHTML=list.map(m=>{const t=totals(m),a=alertsOf(m).length;
     return `<tr><td><button class="mlink" data-open="${esc(m.id)}">${esc(m.codigo)}</button></td><td class="mono">${fmtD(m.data)}</td><td>${esc(m.sentido)}</td><td>${esc(m.de)} → ${esc(m.para)}</td>
       <td class="tag">${m.contentores.map(c=>esc(c.tag||"—")).join(", ")}</td><td class="num">${t.linhas}</td><td class="num">${t.rec}/${t.linhas}</td>
-      <td class="num">${nf(t.bruto)}</td><td class="num">${n2(t.valor)}</td><td class="num">${a?`<span class="al">${a}</span>`:"0"}</td><td><span class="st ${stc(m.status)}">${esc(m.status)}</span></td></tr>`}).join("");
+      <td class="num">${nf(t.bruto)}</td><td class="num">${n2(t.valor)}</td><td class="num">${a?`<span class="al">${a}</span>`:"0"}</td><td>${podeStatus(m)?stSelect(m):`<span class="st ${stc(m.status)}">${esc(m.status)}</span>`}</td></tr>`}).join("");
 }
 
 /* ================= detalhe do manifesto (espelha o formulário real) ================= */
@@ -684,6 +687,41 @@ async function mudarStatus(m,s){
   if(s==="ENCERRADO"){n.contentores.forEach(c=>c.status=n.sentido==="EMBARQUE"?"A BORDO":"DESEMBARCADO");n.dataReal=hojeSP()}
   logH(n,"status → "+n.status);await persist(n);
 }
+/* ---- correção manual de status (lista suspensa na tela inicial) ----
+   Para desfazer um clique errado: escolhe qualquer status programado, inclusive voltar a RASCUNHO.
+   Não aplica as exigências do fluxo normal (é correção); grava no histórico quem mudou, de → para e o motivo.
+   ENCERRADO só administrador muda (mesma regra do banco). */
+const stL=s=>window.mftTr?window.mftTr(s):s;
+const podeStatus=m=>state.canWrite&&(m.status!=="ENCERRADO"||state.isAdmin);
+function stSelect(m){return `<select class="st stsel ${stc(m.status)}" data-stsel="${esc(m.id)}" aria-label="Status do manifesto ${esc(m.codigo)}" title="Corrigir o status deste manifesto">${
+  STATUS.filter(x=>x!=="ENCERRADO"||state.isAdmin||m.status==="ENCERRADO").map(x=>`<option value="${esc(x)}"${x===m.status?" selected":""}>${esc(stL(x))}</option>`).join("")}</select>`}
+function ctStatusPara(n,s){const emb=n.sentido==="EMBARQUE";
+  return {"RASCUNHO":emb?"NA BASE":"A BORDO","EMITIDO":emb?"NA BASE":"A BORDO","EM TRÂNSITO":"EM TRÂNSITO","RECEBIDO A BORDO":emb?"A BORDO":null,
+    "COM DIVERGÊNCIA":emb?"A BORDO":null,"CONFERIDO":emb?"A BORDO":null,"ENCERRADO":emb?"A BORDO":"DESEMBARCADO","CANCELADO":null}[s]}
+function corrigirStatus(m,s){
+  const de=m.status;if(s===de)return;
+  const voltar=STATUS.indexOf(s)<STATUS.indexOf(de)&&s!=="CANCELADO";
+  openModal("Corrigir status · "+m.codigo,`<form class="form" id="f-st" style="padding-top:16px">
+    <p class="wide" style="margin:0">De <span class="st ${stc(de)}">${esc(stL(de))}</span> para <span class="st ${stc(s)}">${esc(stL(s))}</span></p>
+    <p class="hint wide" style="margin:0">${voltar?"O manifesto volta para uma etapa anterior. ":""}Esta é uma correção manual: as exigências do fluxo normal não são verificadas.${
+      ctStatusPara(m,s)?` O status do contentor passa a <b>${esc(ctStatusPara(m,s))}</b>.`:""} Assinaturas, linhas e dados do manifesto não mudam.</p>
+    <label class="wide">Motivo ${s==="CANCELADO"?"(obrigatório)":"(opcional)"}<input id="st-mot" ${s==="CANCELADO"?"required":""} placeholder="${s==="CANCELADO"?"Por que está sendo cancelado":"Ex.: mudei o status sem querer"}"></label>
+    <div class="actions"><button class="btn primary" type="submit">Confirmar mudança</button><button class="btn" type="button" id="st-no">Voltar sem mudar</button></div></form>`);
+  $("#st-no").onclick=()=>{closeModal();render()};
+  $("#f-st").onsubmit=async e=>{e.preventDefault();const mot=up(fv("st-mot")||"");if(s==="CANCELADO"&&!mot)return;
+    const n=clone(m);n.status=s;
+    const cs=ctStatusPara(n,s);if(cs)n.contentores.forEach(c=>c.status=cs);
+    if(s==="CANCELADO")n.motivoCancel=mot;else delete n.motivoCancel;
+    if(s==="ENCERRADO")n.dataReal=n.dataReal||hojeSP();else delete n.dataReal;
+    logH(n,`status corrigido manualmente: ${de} → ${s}${mot?" · motivo: "+mot:""}`);
+    if(await persist(n)){closeModal();toast(`${n.codigo}: status ${stL(s)}.`)}};
+}
+document.addEventListener("change",e=>{const sel=e.target.closest&&e.target.closest("select[data-stsel]");if(!sel)return;
+  const m=state.ms.get(sel.dataset.stsel);if(!m||!podeStatus(m)){render();return}corrigirStatus(m,sel.value)});
+/* fechar a janela de correção sem confirmar devolve a lista ao status gravado */
+document.addEventListener("click",e=>{if((e.target.id==="m-close"||e.target.id==="modal")&&$("#f-st"))setTimeout(render,0)},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#f-st"))setTimeout(render,0)},true);
+window.mftRerender=()=>{try{render()}catch(err){}};
 /* após qualquer edição: RECEBIDO A BORDO ↔ COM DIVERGÊNCIA conforme haja divergência */
 function autoDiv(n){if(n.status==="RECEBIDO A BORDO"&&hasDiv(n)){n.status="COM DIVERGÊNCIA";logH(n,"status → COM DIVERGÊNCIA")}else if(n.status==="COM DIVERGÊNCIA"&&!hasDiv(n)){n.status="RECEBIDO A BORDO";logH(n,"divergências resolvidas · status → RECEBIDO A BORDO")}}
 function cancelar(m){openModal("Cancelar manifesto "+m.codigo,`<form class="form" id="f-c"><label class="wide">Motivo (obrigatório)<textarea id="c-mot" required></textarea></label><div class="actions"><button class="btn dangerbtn solid">Cancelar manifesto</button></div></form>`);
@@ -1109,6 +1147,7 @@ function tr(s){
   if(out==null)return s;
   return s.replace(k,out);
 }
+window.mftTr=s=>tr(s);
 const ALL=new Set([].concat(...Object.values(DICT).map(o=>Object.values(o))));
 function doText(n){
   const pe=n.parentElement;if(pe&&!pe.closest("button")&&pe.closest(SKIP))return;
@@ -1138,6 +1177,7 @@ let busy=false;
 const mo=new MutationObserver(ms=>{if(busy)return;busy=true;try{for(const m of ms){if(m.type==="characterData")doText(m.target);else m.addedNodes.forEach(walk)}}finally{busy=false}});
 function setLang(l){
   lang=l;try{localStorage.setItem("dcp-lang",l)}catch(e){}
+  if(window.mftRerender)setTimeout(window.mftRerender,0);
   document.documentElement.lang=l==="en"?"en":l==="no"?"nb":"pt-BR";
   document.title=l==="en"?"Cargo Manifest Control":l==="no"?"Kontroll av lastmanifester":"Controle de Cargo Manifestos";
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===l));
