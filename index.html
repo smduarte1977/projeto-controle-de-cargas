@@ -288,7 +288,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
 .deck .pxlayer{pointer-events:none}
 .deck .cg.bl text{fill:#d00000;font-weight:800}
 .legend .pxl i{background:transparent!important;border:2px solid #e00000;box-sizing:border-box}
-.legend .bll i{background:#fff;color:#d00000;font:800 10px/18px var(--f-body);font-style:normal;text-align:center}
+.stchip{display:inline-block;padding:0 7px;font-family:var(--f-body);font-size:11px;font-weight:800;line-height:18px;letter-spacing:.02em;text-transform:uppercase;border:1px solid transparent;border-radius:3px;font-style:normal}td.tag .stchip{display:table;margin:3px 0 0}tr.pend td.tag:has(.stchip)::after{position:absolute;top:9px;right:7px;margin:0}.stchip.st-pend,.blstatus b.stchip.st-pend{background:#ffe600;color:#14212e;border-color:#b89f00}.stchip.st-bl,.blstatus b.stchip.st-bl{background:#c00000;color:#fff}.stchip.st-trans,.blstatus b.stchip.st-trans{background:#0b7f5a;color:#fff}.legend.legend-status{grid-template-rows:auto}.legend i.stchip{padding:0}.deck rect.st-et{stroke:#14212e;stroke-width:.04}.deck rect.st-et.st-pend{fill:#ffe600}.deck rect.st-et.st-bl{fill:#c00000}.deck rect.st-et.st-trans{fill:#0b7f5a}.deck .cg text.st-tx{font-size:.44px;font-weight:800;text-transform:uppercase}.deck .cg text.st-tx.st-pend{fill:#14212e}.deck .cg text.st-tx.st-bl,.deck .cg text.st-tx.st-trans{fill:#fff}.deck .st-lig-f{stroke:#14212e;stroke-width:.17}.deck .st-lig{stroke:#fff;stroke-width:.07}.deck rect.st-hit{fill:transparent;pointer-events:all}.deck .cg.callout text:not(.st-tx){fill:var(--ink);paint-order:stroke;stroke:var(--deck);stroke-width:.2}.deck .cg.callout.bl text:not(.st-tx){fill:var(--bl-red)}
 .deck.adjust .cg{cursor:move}
 .deck .handle{fill:var(--signal);cursor:nwse-resize}
 .legend-tit{padding:4px 16px 8px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--ink)}.blalerta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;margin:0 0 12px;padding:10px 14px;border:1px solid #f5b400;border-left-width:4px;background:rgba(245,180,0,.1)}.blalerta[hidden]{display:none}.blstatus{display:grid;gap:4px;margin:6px 0 8px;font-size:14px}.blstatus span{color:var(--muted)}.blstatus b{color:var(--bl-red);font-weight:800}.bluf{justify-self:start;padding:2px 8px;background:#ffe600;color:#14212e;font-weight:700}.form input.uf-falta{background:#ffe600;color:#14212e;border-color:#b89f00}.legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:10px 28px;padding:0 16px 16px;font-size:15px;overflow-x:auto}@media (max-width:900px){.legend{display:flex;flex-wrap:wrap;gap:10px 18px}}
@@ -413,7 +413,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
     <div class="decklay">
       <div class="deckmain">
         <div class="deckscroll"><svg class="deck" id="deck" viewBox="-3 -3 89 36" role="img" aria-label="Convés do Sayan Polaris com as cargas"></svg></div>
-        <div class="legend-tit">Legenda de cores:</div><div class="legend" id="legend"></div>
+        <div class="legend-tit">Legenda de cores:</div><div class="legend" id="legend"></div><div class="legend-tit">Status das cargas:</div><div class="legend legend-status" id="legend-st"></div>
       </div>
       <aside class="deckinfo" id="deckinfo" aria-live="polite"></aside>
     </div>
@@ -554,7 +554,7 @@ function renderRows(){
     const cls=[isFrat(c)?"frat":isGC(c)?"gc":(c.ultimaMov&&c.ultimaMov===L?"last":(c.destaque==="amarelo"?"amar":"")),c.qtd===1?"":"fora",rotFim(c)?"rotf":"",c.sync==="pendente"?"pend":"",px?"proxr":""].join(" ");
     return `<tr class="${cls}" data-id="${esc(id)}">
       <td class="selc"><input type="checkbox" class="rsel" data-id="${esc(id)}" ${state.selRows.has(id)?"checked":""} aria-label="Selecionar ${esc(c.tag)}"></td>
-      <td class="tag${eBackload(c)?" bl":""}">${esc(c.tag)}${px?`<span class="pxb">${c.qtd===1?"&rarr; ":"&larr; "}${esc(px.unidade||"")} · ${fmtD(px.data).slice(0,5)}</span>`:""}</td>${eslTd(c)}${vencTd(c.vencimento)}<td>${esc(c.destino)}</td><td class="num">${typeof c.peso==="number"?nf(c.peso):esc(c.peso)}</td>
+      <td class="tag${eBackload(c)?" bl":""}">${esc(c.tag)}${statusCarga(c)?`<span class="stchip ${statusCarga(c).cls}">${statusCarga(c).nome}</span>`:""}${px?`<span class="pxb">${c.qtd===1?"&rarr; ":"&larr; "}${esc(px.unidade||"")} · ${fmtD(px.data).slice(0,5)}</span>`:""}</td>${eslTd(c)}${vencTd(c.vencimento)}<td>${esc(c.destino)}</td><td class="num">${typeof c.peso==="number"?nf(c.peso):esc(c.peso)}</td>
       <td class="num">${nf(c.comp)}</td><td class="num">${nf(c.larg)}</td><td class="mono">${esc(c.ufEmb)}</td><td class="mono">${esc(c.ufDes)}</td>
       <td class="num">${c.qtd===1?'<span class="qtd1">1</span>':""}</td><td class="num">${s==null?"":nf(s)}</td><td class="num">${nf(m2)}</td>
       <td class="mono">${fmtD(c.dataReceb)}</td><td>${esc(c.local)}</td><td>${esc(c.retorno)}</td><td>${esc(c.responsavel)}</td>
@@ -679,7 +679,7 @@ async function deckPng(){
   root.setAttribute("data-theme","light");state.sel=null;state.adjust=false;drawDeck();
   try{
     const clone=svg.cloneNode(true);const src=svg.querySelectorAll("*"),dst=clone.querySelectorAll("*");
-    const P=["fill","stroke","stroke-width","stroke-dasharray","opacity","font-family","font-size","font-weight","letter-spacing"];
+    const P=["fill","stroke","stroke-width","stroke-dasharray","opacity","font-family","font-size","font-weight","letter-spacing","text-transform","paint-order"];
     src.forEach((e,i)=>{const cs=getComputedStyle(e);dst[i].setAttribute("style",P.map(k=>k+":"+cs.getPropertyValue(k)).join(";"))});
     clone.querySelectorAll("title").forEach(t=>t.remove());
     const vb=svg.viewBox.baseVal,W=3000,H=Math.round(W*vb.height/vb.width);
@@ -779,7 +779,7 @@ async function gerarRelatorio(opts){
     T("Visualização do deck  ·  cargas a bordo do Sayan Polaris  ·  1 quadrado = 0,6 m",M,y-8,{size:9,bold:true});y-=16;
     page.drawImage(png,{x:M+(maxW-w)/2,y:y-h,width:w,height:h});page.drawRectangle({x:M+(maxW-w)/2,y:y-h,width:w,height:h,borderColor:LINE,borderWidth:.6});y-=h+12;
     const seen=new Set();let lx=M;
-    [...LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>[c,n]),["#FFFFFF","Responsável a confirmar"],["RING","Próxima movimentação"],["#FFFFFF","Backload (nome em vermelho)"]].forEach(([c,n])=>{
+    [...LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>[c,n]),["#FFFFFF","Responsável a confirmar"],["RING","Próxima movimentação"],["#FFE600","Pendente"],["#C00000","Backload (nome em vermelho)"],["#0B7F5A","Transbordo"]].forEach(([c,n])=>{
       const wn=18+F.widthOfTextAtSize(pdfTxt(n),7.5);if(lx+wn>PW-M){lx=M;y-=12}
       if(c==="RING")page.drawRectangle({x:lx,y:y-1,width:8,height:8,borderColor:hex("#e00000"),borderWidth:1.4});
       else page.drawRectangle({x:lx,y:y-1,width:8,height:8,color:hex(c),borderColor:hex("#888888"),borderWidth:.4});T(n,lx+11,y,{size:7.5});lx+=wn});
@@ -862,7 +862,7 @@ async function gerarPlanilha(opts){
       wd.getCell(lr+k,2).value=nm;wd.getCell(lr+k,2).font={size:9}});
     wd.getCell(lr+8,1).border={top:{style:"medium",color:{argb:"FFE00000"}},left:{style:"medium",color:{argb:"FFE00000"}},bottom:{style:"medium",color:{argb:"FFE00000"}},right:{style:"medium",color:{argb:"FFE00000"}}};
     wd.getCell(lr+8,2).value="Próxima movimentação (contorno vermelho)";wd.getCell(lr+8,2).font={size:9};
-    wd.getCell(lr+9,1).value="TAG";wd.getCell(lr+9,1).font={size:9,bold:true,color:{argb:"FFD00000"}};wd.getCell(lr+9,1).border=BRD;wd.getCell(lr+9,2).value="Backload (nome em vermelho)";wd.getCell(lr+9,2).font={size:9};
+    [["FFFFE600","Pendente"],["FFC00000","Backload (nome em vermelho)"],["FF0B7F5A","Transbordo"]].forEach(([cor,nm],k)=>{const x=wd.getCell(lr+9+k,1);x.fill={type:"pattern",pattern:"solid",fgColor:{argb:cor}};x.border=BRD;wd.getCell(lr+9+k,2).value=nm;wd.getCell(lr+9+k,2).font={size:9}});
   }
   const buf=await wb.xlsx.writeBuffer();
   return{blob:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),filename:nomeArq("Sayan Polaris Deck Cargo Plan - Tabela","xlsx"),msg:"Planilha salva."};
@@ -1112,11 +1112,19 @@ function eBackload(c){
   if(!h.data||h.data<CORTE_BL)return false;
   return h.saiu||(!!h.orig&&!/^PACU/.test(h.orig));
 }
+/* status de toda carga a bordo: Transbordo (próxima movimentação para outra unidade), Backload ou Pendente.
+   Com rotação finalizada não há status. */
+const STATUS={pend:{nome:"Pendente",cls:"st-pend"},bl:{nome:"Backload",cls:"st-bl"},trans:{nome:"Transbordo",cls:"st-trans"}};
+function statusCarga(c){
+  if(c.qtd!==1||rotFim(c))return null;
+  if(c.prox&&c.prox.data)return /^(PACU|BMAC|BASE)/.test(String(c.prox.unidade||"").toUpperCase())?STATUS.bl:STATUS.trans;
+  return eBackload(c)?STATUS.bl:STATUS.pend;
+}
 /* UF de desembarque: falta quando está vazio ou "A CONFIRMAR" */
 const faltaUF=c=>{const v=String(c.ufDes||"").trim().toUpperCase();return !v||v==="A CONFIRMAR"};
 function statusHtml(c){
-  if(!eBackload(c))return "";
-  return `<div class="blstatus"><div><span>Status:</span> <b>Backload</b></div>${faltaUF(c)?'<div class="bluf">Pendente de UF de desembarque</div>':""}</div>`;
+  const st=statusCarga(c);if(!st)return "";
+  return `<div class="blstatus"><div><span>Status:</span> <b class="stchip ${st.cls}">${st.nome}</b></div>${eBackload(c)&&faltaUF(c)?'<div class="bluf">Pendente de UF de desembarque</div>':""}</div>`;
 }
 /* carga que veio da P-62 e ainda não teve resposta: entra no alerta de movimentação */
 function pendenteP62(c){
@@ -1339,9 +1347,59 @@ $("#f-import").addEventListener("change",async e=>{
 /* ---------- convés ---------- */
 const svg=$("#deck");const NS="http://www.w3.org/2000/svg";
 function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e}
-function wrapText(g,txt,x,y,w,h){
+function quebrarTag(txt,w){
   const words=String(txt||"").split(/\s+/).filter(Boolean);const max=Math.max(3,Math.floor(w/0.36));const lines=[];let cur="";
   for(const wd of words){if((cur+" "+wd).trim().length>max&&cur){lines.push(cur);cur=wd}else cur=(cur+" "+wd).trim()}if(cur)lines.push(cur);
+  return lines;
+}
+/* etiqueta de status: desenhada dentro da carga ou, se não couber, em um quadro branco ligado por uma linha */
+const ETQ_H=0.95,etqLarg=st=>st.nome.length*0.3+0.2;
+function etiqueta(g,st,cx,y){
+  const w=etqLarg(st);el("rect",{x:cx-w/2,y,width:w,height:ETQ_H,rx:.12,class:"st-et "+st.cls},g);
+  const t=el("text",{x:cx,y:y+0.66,"text-anchor":"middle",class:"st-tx "+st.cls},g);t.textContent=st.nome;
+}
+function cabeDentro(txt,st,d){
+  const L=quebrarTag(txt,d.w);
+  return d.w>=etqLarg(st)+0.1&&d.h>=L.length*0.72+0.35+ETQ_H&&Math.max(...L.map(l=>l.length))*0.33<=d.w+0.25;
+}
+function tagComEtiqueta(g,txt,st,d){
+  const L=quebrarTag(txt,d.w),alt=L.length*0.72+0.2+ETQ_H,topo=d.y+(d.h-alt)/2;
+  L.forEach((l,i)=>{const t=el("text",{x:d.x+d.w/2,y:topo+0.55+i*0.72,"text-anchor":"middle"},g);t.textContent=l});
+  etiqueta(g,st,d.x+d.w/2,topo+L.length*0.72+0.2);
+}
+/* só no desenho: hífen vira espaço e letras e números ficam separados, para poder quebrar a linha */
+const tagDesenho=t=>String(t||"").replace(/-/g," ").replace(/([A-Za-zÀ-ÿ])(\d)/g,"$1 $2").replace(/(\d)([A-Za-zÀ-ÿ])/g,"$1 $2").replace(/\s+/g," ").trim();
+/* lugar da informação: abaixo da carga; se houver outra carga, acima; sem espaço claro, fora do convés (em cima ou embaixo) */
+function lugarInfo(d,bw,bh,ocupados){
+  const cx=d.x+d.w/2,livre=(x,y)=>!ocupados.some(o=>x<o.x+o.w+0.1&&x+bw>o.x-0.1&&y<o.y+o.h+0.1&&y+bh>o.y-0.1);
+  /* desliza para o lado, mantendo o traço reto: a informação continua sobre a linha da carga */
+  const passos=[0,0.5,-0.5,1,-1,1.5,-1.5].map(f=>cx-bw/2+f*Math.min(bw/2-0.1,1.5));
+  const ajustaX=x=>Math.max(0.1,Math.min(DECK_W-2-bw,x));
+  for(const y of [d.y+d.h+0.35,d.y-bh-0.35]){
+    if(y<0.1||y+bh>DECK_H-0.1)continue;
+    for(const x of passos)if(livre(ajustaX(x),y))return{x:ajustaX(x),y};
+  }
+  const emCima=d.y+d.h/2<DECK_H/2,y=emCima?-bh-0.15:DECK_H+0.15;
+  let x=ajustaX(cx-bw/2);
+  for(let k=0;k<40&&!livre(x,y);k++)x=ajustaX(cx-bw/2+(k%2?1:-1)*Math.ceil(k/2+0.5)*(bw+0.2));
+  return{x,y};
+}
+function quadroStatus(id,c,txt,st,d,ocupados){
+  /* o nome quebra nos espaços para a informação ocupar o mínimo de largura */
+  const palavras=txt.split(" "),bw=Math.max(etqLarg(st)+0.1,...palavras.map(w=>w.length*0.36+0.2)),L=[];
+  for(const w of palavras){const u=L[L.length-1];if(u&&(u+" "+w).length*0.36+0.2<=bw)L[L.length-1]=u+" "+w;else L.push(w)}
+  const bh=L.length*0.72+0.1+ETQ_H,q=lugarInfo(d,bw,bh,ocupados);
+  ocupados.push({x:q.x,y:q.y,w:bw,h:bh});
+  const g=el("g",{class:"cg callout"+(eBackload(c)?" bl":""),"data-id":id},svg),cx=d.x+d.w/2,acima=q.y+bh<=d.y;
+  const px=Math.max(q.x+0.1,Math.min(q.x+bw-0.1,cx)),py=acima?q.y+bh:q.y;
+  const ponto=[[px,py,cx,d.y+d.h/2]];
+  for(const cl of ["st-lig-f","st-lig"])for(const [x1,y1,x2,y2] of ponto)el("line",{x1,y1,x2,y2,class:cl},g);
+  el("rect",{x:q.x,y:q.y,width:bw,height:bh,class:"st-hit"},g);
+  L.forEach((l,i)=>{const t=el("text",{x:q.x+bw/2,y:q.y+0.55+i*0.72,"text-anchor":"middle"},g);t.textContent=l});
+  etiqueta(g,st,q.x+bw/2,q.y+L.length*0.72+0.1);
+}
+function wrapText(g,txt,x,y,w,h){
+  const lines=quebrarTag(txt,w);
   const lh=0.72,start=y+h/2-(lines.length-1)*lh/2+0.22;
   lines.slice(0,Math.max(1,Math.floor(h/lh))).forEach((l,i)=>{const t=el("text",{x:x+w/2,y:start+i*lh,"text-anchor":"middle"},g);t.textContent=l});
 }
@@ -1361,22 +1419,28 @@ function drawDeck(){
   el("path",{d:`M${DECK_W} 0 L${DECK_W+3} 0 L${DECK_W+3} ${DECK_H} L${DECK_W} ${DECK_H} Z`,class:"end"},svg);
   const bw=el("text",{x:DECK_W+1.5,y:DECK_H/2,class:"endtxt","text-anchor":"middle",transform:`rotate(-90 ${DECK_W+1.5} ${DECK_H/2})`,style:"font-size:1.8px"},svg);bw.textContent="BOW";
   for(const f of state.fixos){const fg=el("g",{class:"fixo"},svg);el("rect",{x:f.x,y:f.y,width:f.w,height:f.h,fill:f.cor?"#"+f.cor:"#d7dde3"},fg);wrapText(fg,f.label,f.x,f.y,f.w,f.h)}
+  const quadros=[],ocupados=[...state.fixos.map(f=>({x:f.x,y:f.y,w:f.w,h:f.h})),...BAYS.map(([,x])=>({x:x-1.15,y:DECK_H/2-0.85,w:2.3,h:1.75}))];
   for(const [id,c] of onboard()){
-    if(!c.deck)continue;const d=(drag&&drag.id===id)?c.deck:fitDims(c,c.deck);
+    if(!c.deck)continue;const d=(drag&&drag.id===id)?c.deck:fitDims(c,c.deck);ocupados.push(d);
     const px=!!(c.prox&&c.prox.data);
     const bl=eBackload(c);const cg=el("g",{class:"cg"+(state.sel===id?" sel":"")+(px?" px":"")+(bl?" bl":""),"data-id":id,tabindex:0,role:"button","aria-label":"Carga "+c.tag+(px?" — próxima movimentação":"")+(bl?" — backload":"")},svg);
     el("rect",{x:d.x,y:d.y,width:d.w,height:d.h,class:"box",fill:colorFor(c.responsavel)||"#ffffff"},cg);
     if(px)(drawDeck._rings||(drawDeck._rings=[])).push(d);
-    wrapText(cg,c.label||c.tag,d.x,d.y,d.w,d.h);
+    const nomeC=tagDesenho(c.label||c.tag),st=statusCarga(c);
+    if(!st)wrapText(cg,nomeC,d.x,d.y,d.w,d.h);
+    else if(cabeDentro(nomeC,st,d))tagComEtiqueta(cg,nomeC,st,d);
+    else quadros.push([id,c,nomeC,st,d]);
     if(state.adjust&&state.sel===id)el("rect",{x:d.x+d.w-0.6,y:d.y+d.h-0.6,width:0.9,height:0.9,class:"handle","data-h":id},cg);
   }
   if(drawDeck._rings){const rg=el("g",{class:"pxlayer"},svg);for(const d of drawDeck._rings)el("rect",{x:d.x-0.28,y:d.y-0.28,width:d.w+0.56,height:d.h+0.56,rx:.35,class:"pxring"},rg);drawDeck._rings=null}
+  for(const q of quadros)quadroStatus(...q,ocupados);
   renderInfo();
   const semPos=onboard().filter(([,c])=>!c.deck).length;
   $("#b-adddeck").textContent=semPos?`Adicionar carga ao deck (${semPos} sem posição)`:"Adicionar carga ao deck";
 }
 function renderLegend(){
-  const seen=new Set();$("#legend").innerHTML=LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join("")+`<span><i style="background:#fff"></i>Responsável a confirmar</span><span class="pxl"><i></i>Próxima movimentação</span><span class="bll"><i>TAG</i>Backload (nome em vermelho)</span>`;
+  const seen=new Set();$("#legend").innerHTML=LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join("")+`<span><i style="background:#fff"></i>Responsável a confirmar</span><span class="pxl"><i></i>Próxima movimentação</span>`;
+  $("#legend-st").innerHTML=`<span><i class="stchip st-pend"></i>Pendente</span><span><i class="stchip st-bl"></i>Backload (nome em vermelho)</span><span><i class="stchip st-trans"></i>Transbordo</span>`;
 }
 function pt(evt){const p=svg.createSVGPoint();p.x=evt.clientX;p.y=evt.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
 let drag=null;
@@ -1430,7 +1494,7 @@ function cargoRows(c){
    ["Size (m²)",s==null?"":nf(s)],["No convés",d?`${nf(d.w*0.6)} × ${nf(d.h*0.6)} m`:""],["UF Embarque",c.ufEmb],["UF Desembarque",c.ufDes],
    ["Local atual",c.local],["Data de recebimento",fmtD(c.dataReceb)],["Previsão de retorno",c.retorno],["Responsável",c.responsavel],
    ["Última mov.",fmtD(c.ultimaMov)],["Próx. movimentação",c.prox&&c.prox.data?`${c.prox.unidade||""} · ${fmtD(c.prox.data)}`:""],["Observações",c.obs]];
-  if(eBackload(c))R.unshift(["Situação","Backload"]);
+  const st=statusCarga(c);if(st)R.unshift(["Status",st.nome]);
   return R.filter(([,v])=>v!=null&&String(v).trim()!=="");
 }
 function renderInfo(){
@@ -1439,7 +1503,7 @@ function renderInfo(){
   const cor=colorFor(c.responsavel)||"#ffffff";
   box.innerHTML=`<h3><i style="background:${cor}"></i><span class="dv">${esc(c.tag)}</span></h3>${statusHtml(c)}
    <div class="sub">${c.qtd===1?"A bordo do Sayan Polaris":"Fora do Sayan Polaris"}</div>
-   <dl>${cargoRows(c).filter(([k])=>k!=="Situação").map(([k,v])=>`<dt>${esc(k)}</dt><dd class="dv">${esc(v)}</dd>`).join("")}
+   <dl>${cargoRows(c).filter(([k])=>k!=="Status").map(([k,v])=>`<dt>${esc(k)}</dt><dd class="dv">${esc(v)}</dd>`).join("")}
    ${c.historico?`<dt>Movimentações</dt><dd class="dv histv">${esc(c.historico)}</dd>`:""}</dl>
    ${c.sync==="pendente"?`<div class="pendv">Alteração pendente${c.editadoEm?` · <span class="dv">${esc(fmtDT(c.editadoEm))}</span>`:""}</div>`:""}
    <div class="acts"><button class="btn" data-ia="cargo">${state.canWrite?"Editar dados":"Ver ficha"}</button>${state.canWrite&&c.deck?'<button class="btn" data-ia="pos">Editar posição</button>':""}${state.canWrite?`<button class="btn primary" data-ia="mov" title="${c.prox&&c.prox.unidade?"Planejada: "+esc(c.prox.unidade)+" · "+fmtD(c.prox.data):"Sem movimentação planejada"}">Confirmar movimentação</button>`:""}<button class="btn" data-ia="x">Fechar</button></div>`;
@@ -1819,7 +1883,7 @@ const DICT={en:{
 "Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Your current access does not allow sending requests here. Ask the owner (Sergio) to share the page with you as",
 "Acessos ao Deck Cargo Plan":"Deck Cargo Plan access","Pedidos":"Requests","Pré-aprovados":"Pre-approved","Usuários":"Users","Nenhum pedido.":"No requests.","Aprovar como Editor":"Approve as Editor","Recusar":"Decline",
 "Você. Edita tudo, publica a página e aprova acessos.":"You. Edit everything, publish the page and approve access.",
-"Carga de volta ao Polaris":"Cargo back on Polaris","Planejar a próxima movimentação?":"Plan the next movement?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Without a new destination, the cargo stays as backload (name in red).","Sim, planejar":"Yes, plan","Carga recebida":"Cargo received","Esta carga é para backload?":"Is this cargo for backload?","Sim, backload":"Yes, backload","Não, informar próximo destino":"No, enter next destination","Próximo destino":"Next destination","Backload (nome em vermelho)":"Backload (name in red)","Situação":"Status","Alerta de movimentação":"Movement alert","Cargas vindas da P-62 aguardando resposta:":"Cargo from P-62 awaiting an answer:","Responder carga por carga":"Answer cargo by cargo","Pular":"Skip","Voltar":"Back","Status:":"Status:","Pendente de UF de desembarque":"Unloading UF pending","Legenda de cores:":"Color legend:","Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
+"Carga de volta ao Polaris":"Cargo back on Polaris","Planejar a próxima movimentação?":"Plan the next movement?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Without a new destination, the cargo stays as backload (name in red).","Sim, planejar":"Yes, plan","Carga recebida":"Cargo received","Esta carga é para backload?":"Is this cargo for backload?","Sim, backload":"Yes, backload","Não, informar próximo destino":"No, enter next destination","Próximo destino":"Next destination","Backload (nome em vermelho)":"Backload (name in red)","Situação":"Status","Alerta de movimentação":"Movement alert","Cargas vindas da P-62 aguardando resposta:":"Cargo from P-62 awaiting an answer:","Responder carga por carga":"Answer cargo by cargo","Pular":"Skip","Voltar":"Back","Status:":"Status:","Pendente de UF de desembarque":"Unloading UF pending","Pendente":"Pending","Backload":"Backload","Transbordo":"Transfer","Status das cargas:":"Cargo status:","Status":"Status","Legenda de cores:":"Color legend:","Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
 "As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use “Add cargo” below to enter the first one.",
 "As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use \"Add cargo\" below to enter the first one.",
 "A BORDO":"ON BOARD","SAIU":"LEFT","REGISTRO":"RECORD","Buscar TAG, destino, responsável…":"Search TAG, destination, owner company…","Buscar":"Search","Filtrar por TAG…":"Filter by TAG…","Filtrar histórico":"Filter history","Filtro":"Filter",
@@ -1865,7 +1929,7 @@ const DICT={en:{
 "Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Din nåværende tilgang tillater ikke forespørsler her. Be eieren (Sergio) dele siden med deg som",
 "Acessos ao Deck Cargo Plan":"Tilganger til Deck Cargo Plan","Pedidos":"Forespørsler","Pré-aprovados":"Forhåndsgodkjent","Usuários":"Brukere","Nenhum pedido.":"Ingen forespørsler.","Aprovar como Editor":"Godkjenn som redaktør","Recusar":"Avslå",
 "Você. Edita tudo, publica a página e aprova acessos.":"Deg. Redigerer alt, publiserer siden og godkjenner tilganger.",
-"Carga de volta ao Polaris":"Last tilbake på Polaris","Planejar a próxima movimentação?":"Planlegge neste flytting?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Uten nytt mål forblir lasten backload (navn i rødt).","Sim, planejar":"Ja, planlegg","Carga recebida":"Last mottatt","Esta carga é para backload?":"Er denne lasten for backload?","Sim, backload":"Ja, backload","Não, informar próximo destino":"Nei, oppgi neste mål","Próximo destino":"Neste mål","Backload (nome em vermelho)":"Backload (navn i rødt)","Situação":"Status","Alerta de movimentação":"Flyttevarsel","Cargas vindas da P-62 aguardando resposta:":"Last fra P-62 som venter på svar:","Responder carga por carga":"Svar last for last","Pular":"Hopp over","Voltar":"Tilbake","Status:":"Status:","Pendente de UF de desembarque":"UF lossing mangler","Legenda de cores:":"Fargeforklaring:","Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
+"Carga de volta ao Polaris":"Last tilbake på Polaris","Planejar a próxima movimentação?":"Planlegge neste flytting?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Uten nytt mål forblir lasten backload (navn i rødt).","Sim, planejar":"Ja, planlegg","Carga recebida":"Last mottatt","Esta carga é para backload?":"Er denne lasten for backload?","Sim, backload":"Ja, backload","Não, informar próximo destino":"Nei, oppgi neste mål","Próximo destino":"Neste mål","Backload (nome em vermelho)":"Backload (navn i rødt)","Situação":"Status","Alerta de movimentação":"Flyttevarsel","Cargas vindas da P-62 aguardando resposta:":"Last fra P-62 som venter på svar:","Responder carga por carga":"Svar last for last","Pular":"Hopp over","Voltar":"Tilbake","Status:":"Status:","Pendente de UF de desembarque":"UF lossing mangler","Pendente":"Venter","Backload":"Backload","Transbordo":"Omlasting","Status das cargas:":"Laststatus:","Status":"Status","Legenda de cores:":"Fargeforklaring:","Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
 "As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
 "As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
 "A BORDO":"OM BORD","SAIU":"GIKK","REGISTRO":"POST","Buscar TAG, destino, responsável…":"Søk TAG, destinasjon, ansvarlig…","Buscar":"Søk","Filtrar por TAG…":"Filtrer på TAG…","Filtrar histórico":"Filtrer historikk","Filtro":"Filter",
