@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script>try{document.documentElement.dataset.visual=localStorage.getItem("dcp-visual")==="antiga"?"antiga":"neo"}catch(e){document.documentElement.dataset.visual="neo"}</script>
 <style>
 /* Layout: barra de comando no topo (navio + indicadores), abas de trabalho; o convés é desenhado em escala 1 célula = 0,6 m */
 :root{
@@ -43,6 +44,52 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
+
+
+/* ================= Versão nova: identidade NeoRadar (cores, formas e cabeçalho; fontes do site mantidas) =================
+   Paleta do design system NeoRadar. O botão "Versão antiga / Versão nova" troca html[data-visual]. */
+:root{--neo-navy-900:#0a1324;--neo-navy-800:#111f38;--neo-radar:#3480c8;--neo-radar-lit:#60a8e8;--neo-signal:#16aa7a;--neo-silver:#b0bed0;--neo-mist:#ecf1f7;--neo-instrument:#708096;--neo-ink:#0e1c34;--neo-paper:#f4f6f9;--neo-alert:#e5534b}
+html[data-visual="neo"]{
+  --bg:var(--neo-paper); --panel:#ffffff; --ink:var(--neo-ink); --muted:#5c6b82; --line:#d0d7e2; --line-2:#e3e8ef;
+  --accent:#2668a8; --accent-ink:#ffffff; --signal:var(--neo-alert); --ok:#0b7f5a; --warn:#b45309;
+  --deck:#ffffff; --deck-grid:#e3e8ef; --deck-bay:#9fb0c4; --deck-edge:var(--neo-ink);
+  --row-hover:#eef2f7; --shadow:none; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar); --neo-bay:var(--neo-radar)}
+@media (prefers-color-scheme:dark){html[data-visual="neo"]:not([data-theme="light"]){
+  --bg:var(--neo-navy-900); --panel:#0e1a30; --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
+  --accent:var(--neo-radar); --accent-ink:var(--neo-mist); --signal:var(--neo-alert); --ok:var(--neo-signal); --warn:#f5b400;
+  --deck:#0e1a30; --deck-grid:#1a2a44; --deck-bay:#2c4466; --deck-edge:var(--neo-silver);
+  --row-hover:#13223c; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar-lit); --neo-bay:var(--neo-radar-lit)}}
+html[data-visual="neo"][data-theme="dark"]{
+  --bg:var(--neo-navy-900); --panel:#0e1a30; --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
+  --accent:var(--neo-radar); --accent-ink:var(--neo-mist); --signal:var(--neo-alert); --ok:var(--neo-signal); --warn:#f5b400;
+  --deck:#0e1a30; --deck-grid:#1a2a44; --deck-bay:#2c4466; --deck-edge:var(--neo-silver);
+  --row-hover:#13223c; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar-lit); --neo-bay:var(--neo-radar-lit)}
+@media (prefers-color-scheme:dark){html[data-visual="neo"]:not([data-theme="light"]) body{background:linear-gradient(180deg,var(--neo-navy-800) 0%,var(--neo-navy-900) 320px) var(--neo-navy-900)}}
+html[data-visual="neo"][data-theme="dark"] body{background:linear-gradient(180deg,var(--neo-navy-800) 0%,var(--neo-navy-900) 320px) var(--neo-navy-900)}
+/* cabeçalho: NeoRadar | DECK + nome da unidade (como no NeoRadar | POB) */
+.neo-brand{display:none}
+html[data-visual="neo"] .ship .eyebrow,html[data-visual="neo"] .ship h1{display:none}
+html[data-visual="neo"] .neo-brand{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;background:var(--neo-navy-900);border-bottom:1px solid #243652;padding:10px 14px;margin-bottom:6px}
+.neo-brand img{height:40px;width:auto;display:block}
+.neo-unit{display:flex;flex-direction:column;gap:2px;border-left:1px solid #243652;padding-left:16px}
+.neo-unit small{font-family:var(--f-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#8796ad}
+.neo-unit b{font-family:var(--f-display);font-weight:700;font-size:24px;line-height:28px;color:var(--neo-mist)}
+/* formas: cartões com cantos vivos; botões, selos e chips com 6 px; campos com 2 px */
+html[data-visual="neo"] .panel,html[data-visual="neo"] .kpi,html[data-visual="neo"] .modal .box{border-radius:0}
+html[data-visual="neo"] .btn,html[data-visual="neo"] .chip,html[data-visual="neo"] .lang button{border-radius:6px}
+html[data-visual="neo"] .search,html[data-visual="neo"] .form input,html[data-visual="neo"] .form select,html[data-visual="neo"] .form textarea{border-radius:2px}
+html[data-visual="neo"] .search:focus,html[data-visual="neo"] .form input:focus,html[data-visual="neo"] .form select:focus,html[data-visual="neo"] .form textarea:focus{border-color:var(--neo-radar-lit);outline:none}
+html[data-visual="neo"] thead th{background:var(--neo-head);color:var(--neo-mist)}
+html[data-visual="neo"] .kpi small{letter-spacing:.18em}
+/* convés: grade discreta, contorno prata, números das baias em azul radar, seleção em azul (o vermelho fica só para alerta) */
+html[data-visual="neo"] .deck .baylbl{fill:var(--neo-bay)}
+html[data-visual="neo"] .deck .end{fill:var(--neo-navy-800)}
+html[data-visual="neo"] .deck .endtxt{fill:var(--neo-mist)}
+html[data-visual="neo"] .deck .endtxt.dcltxt{fill:var(--ink)}
+html[data-visual="neo"] .deck .cg.sel rect.box{stroke:var(--neo-sel)}
+html[data-visual="neo"] .deck .handle{fill:var(--neo-sel)}
+html[data-visual="neo"] .deck .cg rect.box{stroke:var(--neo-navy-900)}
+.lang .visbtn{margin-right:4px;padding:4px 10px;color:var(--ink)}
 
 /* topo */
 .top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
@@ -270,6 +317,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
     <div class="ship">
       <div class="eyebrow">MPSV · Controle de cargas e convés</div>
       <h1>Sayan Polaris <span>Deck Cargo Plan</span></h1>
+      <div class="neo-brand"><img src="img/neoradar-deck-fundo-escuro.png" alt="NeoRadar | DECK" width="207" height="40"><div class="neo-unit"><small>Unidade</small><b>Sayan Polaris</b></div></div>
       <div class="hint" id="baseinfo">Carregando dados…</div>
       <div class="access"><span class="role" id="role">Verificando acesso…</span><button class="btn small" id="b-acessos" hidden>Acessos</button><button class="btn small" id="b-login" type="button">Entrar</button></div>
     </div>
@@ -1223,7 +1271,7 @@ function drawDeck(){
   for(const x of BAY_DIV)el("line",{x1:x,y1:0,x2:x,y2:DECK_H,class:"bayline"},g);
   for(const [n,x] of BAYS){el("rect",{x:x-1.15,y:DECK_H/2-0.85,width:2.3,height:1.75,rx:.2,class:"baylblbg"},g);const t=el("text",{x,y:DECK_H/2+0.55,class:"baylbl","text-anchor":"middle"},g);t.textContent=n}
   el("rect",{x:DECK_W-1.6,y:0.3,width:0.45,height:DECK_H-6,class:"dcl"},svg);
-  const dt=el("text",{x:DECK_W-0.55,y:DECK_H/2-2,class:"endtxt","text-anchor":"middle",transform:`rotate(-90 ${DECK_W-0.55} ${DECK_H/2-2})`,style:"font-size:.75px"},svg);dt.textContent="DANGEROUS CARGO LINE";
+  const dt=el("text",{x:DECK_W-0.55,y:DECK_H/2-2,class:"endtxt dcltxt","text-anchor":"middle",transform:`rotate(-90 ${DECK_W-0.55} ${DECK_H/2-2})`,style:"font-size:.75px"},svg);dt.textContent="DANGEROUS CARGO LINE";
   el("path",{d:`M${DECK_W} 0 L${DECK_W+3} 0 L${DECK_W+3} ${DECK_H} L${DECK_W} ${DECK_H} Z`,class:"end"},svg);
   const bw=el("text",{x:DECK_W+1.5,y:DECK_H/2,class:"endtxt","text-anchor":"middle",transform:`rotate(-90 ${DECK_W+1.5} ${DECK_H/2})`,style:"font-size:1.8px"},svg);bw.textContent="BOW";
   for(const f of state.fixos){const fg=el("g",{class:"fixo"},svg);el("rect",{x:f.x,y:f.y,width:f.w,height:f.h,fill:f.cor?"#"+f.cor:"#d7dde3"},fg);wrapText(fg,f.label,f.x,f.y,f.w,f.h)}
@@ -1834,6 +1882,14 @@ try{const sv=localStorage.getItem("dcp-theme");if(sv==="light"||sv==="dark")RT.s
 tb.addEventListener("click",()=>{const n=curDark()?"light":"dark";RT.setAttribute("data-theme",n);try{localStorage.setItem("dcp-theme",n)}catch(e){}paintT()});
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(!RT.getAttribute("data-theme"))paintT()});
 box.insertBefore(tb,box.firstChild);paintT();
+/* versão antiga / versão nova (NeoRadar) — fica guardada neste navegador */
+const vb=document.createElement("button");vb.type="button";vb.className="visbtn";
+const paintV=()=>{let lg="pt";try{lg=localStorage.getItem("dcp-lang")||"pt"}catch(e){}const neo=RT.dataset.visual!=="antiga";
+  const L={pt:["Versão antiga","Versão nova"],en:["Old version","New version"],no:["Gammel versjon","Ny versjon"]}[lg]||["Versão antiga","Versão nova"];
+  vb.textContent=neo?L[0]:L[1];vb.title=neo?"Voltar ao visual anterior":"Usar o visual NeoRadar";};
+vb.addEventListener("click",()=>{const n=RT.dataset.visual==="antiga"?"neo":"antiga";RT.dataset.visual=n;try{localStorage.setItem("dcp-visual",n)}catch(e){}paintV();if(typeof window.__redrawDeck==="function")window.__redrawDeck()});
+box.insertBefore(vb,box.firstChild);paintV();
+box.addEventListener("click",e=>{if(e.target.closest("button[data-lang]"))setTimeout(paintV,0)});
 mo.observe(document.body,{subtree:true,childList:true,characterData:true});
 setLang(lang);
 })();
