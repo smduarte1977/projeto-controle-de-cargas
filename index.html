@@ -55,17 +55,17 @@ html[data-visual="neo"]{
   --deck:#ffffff; --deck-grid:#e3e8ef; --deck-bay:#9fb0c4; --deck-edge:var(--neo-ink);
   --row-hover:#eef2f7; --shadow:none; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar); --neo-bay:var(--neo-radar)}
 @media (prefers-color-scheme:dark){html[data-visual="neo"]:not([data-theme="light"]){
-  --bg:var(--neo-navy-900); --panel:#0e1a30; --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
+  --bg:var(--neo-navy-900); --panel:var(--neo-navy-900); --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
   --accent:var(--neo-radar); --accent-ink:var(--neo-mist); --signal:var(--neo-alert); --ok:var(--neo-signal); --warn:#f5b400;
   --deck:#0e1a30; --deck-grid:#1a2a44; --deck-bay:#2c4466; --deck-edge:var(--neo-silver);
   --row-hover:#13223c; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar-lit); --neo-bay:var(--neo-radar-lit)}}
 html[data-visual="neo"][data-theme="dark"]{
-  --bg:var(--neo-navy-900); --panel:#0e1a30; --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
+  --bg:var(--neo-navy-900); --panel:var(--neo-navy-900); --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
   --accent:var(--neo-radar); --accent-ink:var(--neo-mist); --signal:var(--neo-alert); --ok:var(--neo-signal); --warn:#f5b400;
   --deck:#0e1a30; --deck-grid:#1a2a44; --deck-bay:#2c4466; --deck-edge:var(--neo-silver);
   --row-hover:#13223c; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar-lit); --neo-bay:var(--neo-radar-lit)}
-@media (prefers-color-scheme:dark){html[data-visual="neo"]:not([data-theme="light"]) body{background:linear-gradient(180deg,var(--neo-navy-800) 0%,var(--neo-navy-900) 320px) var(--neo-navy-900)}}
-html[data-visual="neo"][data-theme="dark"] body{background:linear-gradient(180deg,var(--neo-navy-800) 0%,var(--neo-navy-900) 320px) var(--neo-navy-900)}
+@media (prefers-color-scheme:dark){html[data-visual="neo"]:not([data-theme="light"]) body{background:var(--neo-navy-900)}html[data-visual="neo"]:not([data-theme="light"]) #p-deck{--panel:#0e1a30}}
+html[data-visual="neo"][data-theme="dark"] body{background:var(--neo-navy-900)}html[data-visual="neo"][data-theme="dark"] #p-deck{--panel:#0e1a30}
 /* cabeçalho: NeoRadar | DECK + nome da unidade (como no NeoRadar | POB) */
 .neo-brand{display:none}
 html[data-visual="neo"] .ship .eyebrow,html[data-visual="neo"] .ship h1{display:none}
@@ -288,9 +288,9 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
 .legend .pxl i{background:transparent!important;border:2px solid #e00000;box-sizing:border-box}
 .deck.adjust .cg{cursor:move}
 .deck .handle{fill:var(--signal);cursor:nwse-resize}
-.legend{display:flex;flex-wrap:wrap;gap:6px 14px;padding:0 16px 14px;font-size:12px}
-.legend span{display:inline-flex;align-items:center;gap:6px}
-.legend i{width:14px;height:10px;border:1px solid var(--line);display:inline-block}
+.legend-tit{padding:4px 16px 8px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--ink)}.legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:10px 28px;padding:0 16px 16px;font-size:15px;overflow-x:auto}@media (max-width:900px){.legend{display:flex;flex-wrap:wrap;gap:10px 18px}}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{width:28px;height:20px;flex:none;border:1px solid var(--line);display:inline-block}
 .scale{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 
 /* menu e modal */
@@ -409,7 +409,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
     <div class="decklay">
       <div class="deckmain">
         <div class="deckscroll"><svg class="deck" id="deck" viewBox="-3 -3 89 36" role="img" aria-label="Convés do Sayan Polaris com as cargas"></svg></div>
-        <div class="legend" id="legend"></div>
+        <div class="legend-tit">Legenda de cores:</div><div class="legend" id="legend"></div>
       </div>
       <aside class="deckinfo" id="deckinfo" aria-live="polite"></aside>
     </div>
@@ -1732,7 +1732,7 @@ const DICT={en:{
 "Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Your current access does not allow sending requests here. Ask the owner (Sergio) to share the page with you as",
 "Acessos ao Deck Cargo Plan":"Deck Cargo Plan access","Pedidos":"Requests","Pré-aprovados":"Pre-approved","Usuários":"Users","Nenhum pedido.":"No requests.","Aprovar como Editor":"Approve as Editor","Recusar":"Decline",
 "Você. Edita tudo, publica a página e aprova acessos.":"You. Edit everything, publish the page and approve access.",
-"Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
+"Legenda de cores:":"Color legend:","Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
 "As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use “Add cargo” below to enter the first one.",
 "As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use \"Add cargo\" below to enter the first one.",
 "A BORDO":"ON BOARD","SAIU":"LEFT","REGISTRO":"RECORD","Buscar TAG, destino, responsável…":"Search TAG, destination, owner company…","Buscar":"Search","Filtrar por TAG…":"Filter by TAG…","Filtrar histórico":"Filter history","Filtro":"Filter",
@@ -1778,7 +1778,7 @@ const DICT={en:{
 "Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Din nåværende tilgang tillater ikke forespørsler her. Be eieren (Sergio) dele siden med deg som",
 "Acessos ao Deck Cargo Plan":"Tilganger til Deck Cargo Plan","Pedidos":"Forespørsler","Pré-aprovados":"Forhåndsgodkjent","Usuários":"Brukere","Nenhum pedido.":"Ingen forespørsler.","Aprovar como Editor":"Godkjenn som redaktør","Recusar":"Avslå",
 "Você. Edita tudo, publica a página e aprova acessos.":"Deg. Redigerer alt, publiserer siden og godkjenner tilganger.",
-"Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
+"Legenda de cores:":"Fargeforklaring:","Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
 "As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
 "As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
 "A BORDO":"OM BORD","SAIU":"GIKK","REGISTRO":"POST","Buscar TAG, destino, responsável…":"Søk TAG, destinasjon, ansvarlig…","Buscar":"Søk","Filtrar por TAG…":"Filtrer på TAG…","Filtrar histórico":"Filtrer historikk","Filtro":"Filter",
