@@ -291,7 +291,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
 .legend .bll i{background:#fff;color:#d00000;font:800 10px/18px var(--f-body);font-style:normal;text-align:center}
 .deck.adjust .cg{cursor:move}
 .deck .handle{fill:var(--signal);cursor:nwse-resize}
-.legend-tit{padding:4px 16px 8px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--ink)}.blalerta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;margin:0 0 12px;padding:10px 14px;border:1px solid #f5b400;border-left-width:4px;background:rgba(245,180,0,.1)}.blalerta[hidden]{display:none}.legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:10px 28px;padding:0 16px 16px;font-size:15px;overflow-x:auto}@media (max-width:900px){.legend{display:flex;flex-wrap:wrap;gap:10px 18px}}
+.legend-tit{padding:4px 16px 8px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--ink)}.blalerta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;margin:0 0 12px;padding:10px 14px;border:1px solid #f5b400;border-left-width:4px;background:rgba(245,180,0,.1)}.blalerta[hidden]{display:none}.blstatus{display:grid;gap:4px;margin:6px 0 8px;font-size:14px}.blstatus span{color:var(--muted)}.blstatus b{color:var(--bl-red);font-weight:800}.bluf{justify-self:start;padding:2px 8px;background:#ffe600;color:#14212e;font-weight:700}.form input.uf-falta{background:#ffe600;color:#14212e;border-color:#b89f00}.legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:10px 28px;padding:0 16px 16px;font-size:15px;overflow-x:auto}@media (max-width:900px){.legend{display:flex;flex-wrap:wrap;gap:10px 18px}}
 .legend span{display:inline-flex;align-items:center;gap:8px}
 .legend i{width:28px;height:20px;flex:none;border:1px solid var(--line);display:inline-block}
 .scale{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
@@ -976,7 +976,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();hideCt
 
 function editCargo(id){
   const c=state.cargas.get(id);if(!c)return;
-  openModal((state.canWrite?"Editar carga ":"Carga ")+c.tag,`<form class="form" id="f-edit" style="padding-top:16px">${fieldsHtml(c,"e")}
+  openModal((state.canWrite?"Editar carga ":"Carga ")+c.tag,`<form class="form" id="f-edit" style="padding-top:16px"><div class="wide" id="e-status" style="grid-column:1/-1">${statusHtml(c)}</div>${fieldsHtml(c,"e")}
    <p class="editinfo" id="e-info">${c.editadoEm?"Última alteração na página: "+fmtDT(c.editadoEm):""}${c.sync==="pendente"?" · aguardando a planilha (gerada às 07:45, 10:30, 13:30, 16:30 e 19:30 com o nome de quem editou)":""}</p>
    <fieldset class="wide" ${state.canWrite?"":"hidden"} style="border:1px solid var(--line);border-radius:6px;padding:10px;display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
     <legend class="hint">Registrar movimentação (entra no topo das movimentações)</legend>
@@ -989,6 +989,9 @@ function editCargo(id){
    <div class="actions"><button class="btn primary" type="submit" ${state.canWrite?"":"disabled"}>Salvar</button><button class="btn" type="button" id="e-cancel">Cancelar</button></div>
    ${state.canWrite?`<div class="danger"><span class="hint">Correções</span><button class="btn" type="button" id="e-undo" ${String(c.historico||"").trim()?"":"disabled"}>Excluir último movimento</button><button class="btn dangerbtn" type="button" id="e-del">Excluir registro total da carga</button></div>`:""}</form>`);
   $("#e-cancel").onclick=closeModal;
+  /* enquanto faltar a UF de desembarque de uma carga em backload, o campo fica em amarelo; preencheu, volta ao normal */
+  const campoUF=$("#e-ufDes"),marcarUF=()=>{const vis=Object.assign({},c,{ufDes:campoUF.value});campoUF.classList.toggle("uf-falta",eBackload(c)&&faltaUF(vis));$("#e-status").innerHTML=statusHtml(vis)};
+  campoUF.addEventListener("input",marcarUF);marcarUF();
   if(state.canWrite){$("#e-undo").onclick=()=>undoLastMove(id);$("#e-del").onclick=()=>deleteCargo(id)}
   if(!state.canWrite){document.querySelectorAll("#f-edit input,#f-edit select,#f-edit textarea").forEach(x=>x.disabled=true);$("#f-edit button[type=submit]").hidden=true;$("#e-cancel").textContent="Fechar";
     const rq=document.createElement("button");rq.type="button";rq.className="btn primary";rq.textContent="Quero editar";rq.onclick=()=>{closeModal();gate()};$("#e-cancel").before(rq)}
@@ -1108,6 +1111,12 @@ function eBackload(c){
   if(respBL(c,h)==="sim")return true;
   if(!h.data||h.data<CORTE_BL)return false;
   return h.saiu||(!!h.orig&&!/^PACU/.test(h.orig));
+}
+/* UF de desembarque: falta quando está vazio ou "A CONFIRMAR" */
+const faltaUF=c=>{const v=String(c.ufDes||"").trim().toUpperCase();return !v||v==="A CONFIRMAR"};
+function statusHtml(c){
+  if(!eBackload(c))return "";
+  return `<div class="blstatus"><div><span>Status:</span> <b>Backload</b></div>${faltaUF(c)?'<div class="bluf">Pendente de UF de desembarque</div>':""}</div>`;
 }
 /* carga que veio da P-62 e ainda não teve resposta: entra no alerta de movimentação */
 function pendenteP62(c){
@@ -1428,9 +1437,9 @@ function renderInfo(){
   const box=$("#deckinfo");if(!box)return;const c=state.sel&&state.cargas.get(state.sel);
   if(!c){box.innerHTML='<p class="hint">Clique numa carga do convés para ver todos os dados.</p>';return}
   const cor=colorFor(c.responsavel)||"#ffffff";
-  box.innerHTML=`<h3><i style="background:${cor}"></i><span class="dv">${esc(c.tag)}</span></h3>
+  box.innerHTML=`<h3><i style="background:${cor}"></i><span class="dv">${esc(c.tag)}</span></h3>${statusHtml(c)}
    <div class="sub">${c.qtd===1?"A bordo do Sayan Polaris":"Fora do Sayan Polaris"}</div>
-   <dl>${cargoRows(c).map(([k,v])=>`<dt>${esc(k)}</dt><dd class="dv">${esc(v)}</dd>`).join("")}
+   <dl>${cargoRows(c).filter(([k])=>k!=="Situação").map(([k,v])=>`<dt>${esc(k)}</dt><dd class="dv">${esc(v)}</dd>`).join("")}
    ${c.historico?`<dt>Movimentações</dt><dd class="dv histv">${esc(c.historico)}</dd>`:""}</dl>
    ${c.sync==="pendente"?`<div class="pendv">Alteração pendente${c.editadoEm?` · <span class="dv">${esc(fmtDT(c.editadoEm))}</span>`:""}</div>`:""}
    <div class="acts"><button class="btn" data-ia="cargo">${state.canWrite?"Editar dados":"Ver ficha"}</button>${state.canWrite&&c.deck?'<button class="btn" data-ia="pos">Editar posição</button>':""}${state.canWrite?`<button class="btn primary" data-ia="mov" title="${c.prox&&c.prox.unidade?"Planejada: "+esc(c.prox.unidade)+" · "+fmtD(c.prox.data):"Sem movimentação planejada"}">Confirmar movimentação</button>`:""}<button class="btn" data-ia="x">Fechar</button></div>`;
@@ -1810,7 +1819,7 @@ const DICT={en:{
 "Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Your current access does not allow sending requests here. Ask the owner (Sergio) to share the page with you as",
 "Acessos ao Deck Cargo Plan":"Deck Cargo Plan access","Pedidos":"Requests","Pré-aprovados":"Pre-approved","Usuários":"Users","Nenhum pedido.":"No requests.","Aprovar como Editor":"Approve as Editor","Recusar":"Decline",
 "Você. Edita tudo, publica a página e aprova acessos.":"You. Edit everything, publish the page and approve access.",
-"Carga de volta ao Polaris":"Cargo back on Polaris","Planejar a próxima movimentação?":"Plan the next movement?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Without a new destination, the cargo stays as backload (name in red).","Sim, planejar":"Yes, plan","Carga recebida":"Cargo received","Esta carga é para backload?":"Is this cargo for backload?","Sim, backload":"Yes, backload","Não, informar próximo destino":"No, enter next destination","Próximo destino":"Next destination","Backload (nome em vermelho)":"Backload (name in red)","Situação":"Status","Alerta de movimentação":"Movement alert","Cargas vindas da P-62 aguardando resposta:":"Cargo from P-62 awaiting an answer:","Responder carga por carga":"Answer cargo by cargo","Pular":"Skip","Voltar":"Back","Legenda de cores:":"Color legend:","Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
+"Carga de volta ao Polaris":"Cargo back on Polaris","Planejar a próxima movimentação?":"Plan the next movement?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Without a new destination, the cargo stays as backload (name in red).","Sim, planejar":"Yes, plan","Carga recebida":"Cargo received","Esta carga é para backload?":"Is this cargo for backload?","Sim, backload":"Yes, backload","Não, informar próximo destino":"No, enter next destination","Próximo destino":"Next destination","Backload (nome em vermelho)":"Backload (name in red)","Situação":"Status","Alerta de movimentação":"Movement alert","Cargas vindas da P-62 aguardando resposta:":"Cargo from P-62 awaiting an answer:","Responder carga por carga":"Answer cargo by cargo","Pular":"Skip","Voltar":"Back","Status:":"Status:","Pendente de UF de desembarque":"Unloading UF pending","Legenda de cores:":"Color legend:","Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
 "As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use “Add cargo” below to enter the first one.",
 "As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use \"Add cargo\" below to enter the first one.",
 "A BORDO":"ON BOARD","SAIU":"LEFT","REGISTRO":"RECORD","Buscar TAG, destino, responsável…":"Search TAG, destination, owner company…","Buscar":"Search","Filtrar por TAG…":"Filter by TAG…","Filtrar histórico":"Filter history","Filtro":"Filter",
@@ -1856,7 +1865,7 @@ const DICT={en:{
 "Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Din nåværende tilgang tillater ikke forespørsler her. Be eieren (Sergio) dele siden med deg som",
 "Acessos ao Deck Cargo Plan":"Tilganger til Deck Cargo Plan","Pedidos":"Forespørsler","Pré-aprovados":"Forhåndsgodkjent","Usuários":"Brukere","Nenhum pedido.":"Ingen forespørsler.","Aprovar como Editor":"Godkjenn som redaktør","Recusar":"Avslå",
 "Você. Edita tudo, publica a página e aprova acessos.":"Deg. Redigerer alt, publiserer siden og godkjenner tilganger.",
-"Carga de volta ao Polaris":"Last tilbake på Polaris","Planejar a próxima movimentação?":"Planlegge neste flytting?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Uten nytt mål forblir lasten backload (navn i rødt).","Sim, planejar":"Ja, planlegg","Carga recebida":"Last mottatt","Esta carga é para backload?":"Er denne lasten for backload?","Sim, backload":"Ja, backload","Não, informar próximo destino":"Nei, oppgi neste mål","Próximo destino":"Neste mål","Backload (nome em vermelho)":"Backload (navn i rødt)","Situação":"Status","Alerta de movimentação":"Flyttevarsel","Cargas vindas da P-62 aguardando resposta:":"Last fra P-62 som venter på svar:","Responder carga por carga":"Svar last for last","Pular":"Hopp over","Voltar":"Tilbake","Legenda de cores:":"Fargeforklaring:","Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
+"Carga de volta ao Polaris":"Last tilbake på Polaris","Planejar a próxima movimentação?":"Planlegge neste flytting?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Uten nytt mål forblir lasten backload (navn i rødt).","Sim, planejar":"Ja, planlegg","Carga recebida":"Last mottatt","Esta carga é para backload?":"Er denne lasten for backload?","Sim, backload":"Ja, backload","Não, informar próximo destino":"Nei, oppgi neste mål","Próximo destino":"Neste mål","Backload (nome em vermelho)":"Backload (navn i rødt)","Situação":"Status","Alerta de movimentação":"Flyttevarsel","Cargas vindas da P-62 aguardando resposta:":"Last fra P-62 som venter på svar:","Responder carga por carga":"Svar last for last","Pular":"Hopp over","Voltar":"Tilbake","Status:":"Status:","Pendente de UF de desembarque":"UF lossing mangler","Legenda de cores:":"Fargeforklaring:","Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
 "As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
 "As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
 "A BORDO":"OM BORD","SAIU":"GIKK","REGISTRO":"POST","Buscar TAG, destino, responsável…":"Søk TAG, destinasjon, ansvarlig…","Buscar":"Søk","Filtrar por TAG…":"Filtrer på TAG…","Filtrar histórico":"Filtrer historikk","Filtro":"Filter",
