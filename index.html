@@ -12,7 +12,7 @@
 <style>
 /* Layout: barra de comando no topo (navio + indicadores), abas de trabalho; o convés é desenhado em escala 1 célula = 0,6 m */
 :root{
-  --bg:#eef1f4; --panel:#ffffff; --ink:#14212e; --muted:#5b6b7a; --line:#d3dbe3; --line-2:#e6ebf0;
+  --bl-red:#c00000; --bg:#eef1f4; --panel:#ffffff; --ink:#14212e; --muted:#5b6b7a; --line:#d3dbe3; --line-2:#e6ebf0;
   --accent:#0f5c8c; --accent-ink:#ffffff; --signal:#c2410c; --ok:#1f7a4d; --warn:#b45309;
   --deck:#f7f9fb; --deck-grid:#dfe5ec; --deck-bay:#9aa9b8; --deck-edge:#4a5a6a;
   --beige:#ddd9c4; --orange:#ffc000; --yellow:#fff27a; --gc:#ffff00;
@@ -22,13 +22,13 @@
   --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e1620; --panel:#15212d; --ink:#e6edf3; --muted:#93a4b4; --line:#2a3a4a; --line-2:#203040;
+  --bl-red:#ff5a52; --bg:#0e1620; --panel:#15212d; --ink:#e6edf3; --muted:#93a4b4; --line:#2a3a4a; --line-2:#203040;
   --accent:#4fa3d9; --accent-ink:#06121c; --signal:#f97316; --ok:#4ade80; --warn:#fbbf24;
   --deck:#101c27; --deck-grid:#1f2f3e; --deck-bay:#5d7286; --deck-edge:#8aa0b4;
   --beige:#4a4636; --orange:#b88a00; --yellow:#6b6420; --gc:#8a8600; --row-hover:#1b2938; --shadow:0 1px 2px rgba(0,0,0,.3);
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0e1620; --panel:#15212d; --ink:#e6edf3; --muted:#93a4b4; --line:#2a3a4a; --line-2:#203040;
+  --bl-red:#ff5a52; --bg:#0e1620; --panel:#15212d; --ink:#e6edf3; --muted:#93a4b4; --line:#2a3a4a; --line-2:#203040;
   --accent:#4fa3d9; --accent-ink:#06121c; --signal:#f97316; --ok:#4ade80; --warn:#fbbf24;
   --deck:#101c27; --deck-grid:#1f2f3e; --deck-bay:#5d7286; --deck-edge:#8aa0b4;
   --beige:#4a4636; --orange:#b88a00; --yellow:#6b6420; --gc:#8a8600; --row-hover:#1b2938; --shadow:0 1px 2px rgba(0,0,0,.3);
@@ -55,12 +55,12 @@ html[data-visual="neo"]{
   --deck:#ffffff; --deck-grid:#e3e8ef; --deck-bay:#9fb0c4; --deck-edge:var(--neo-ink);
   --row-hover:#eef2f7; --shadow:none; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar); --neo-bay:var(--neo-radar)}
 @media (prefers-color-scheme:dark){html[data-visual="neo"]:not([data-theme="light"]){
-  --bg:var(--neo-navy-900); --panel:var(--neo-navy-900); --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
+  --bl-red:#ff5a52; --bg:var(--neo-navy-900); --panel:var(--neo-navy-900); --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
   --accent:var(--neo-radar); --accent-ink:var(--neo-mist); --signal:var(--neo-alert); --ok:var(--neo-signal); --warn:#f5b400;
   --deck:#0e1a30; --deck-grid:#1a2a44; --deck-bay:#2c4466; --deck-edge:var(--neo-silver);
   --row-hover:#13223c; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar-lit); --neo-bay:var(--neo-radar-lit)}}
 html[data-visual="neo"][data-theme="dark"]{
-  --bg:var(--neo-navy-900); --panel:var(--neo-navy-900); --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
+  --bl-red:#ff5a52; --bg:var(--neo-navy-900); --panel:var(--neo-navy-900); --ink:var(--neo-mist); --muted:#8796ad; --line:#243652; --line-2:#1a2a44;
   --accent:var(--neo-radar); --accent-ink:var(--neo-mist); --signal:var(--neo-alert); --ok:var(--neo-signal); --warn:#f5b400;
   --deck:#0e1a30; --deck-grid:#1a2a44; --deck-bay:#2c4466; --deck-edge:var(--neo-silver);
   --row-hover:#13223c; --neo-head:var(--neo-navy-800); --neo-sel:var(--neo-radar-lit); --neo-bay:var(--neo-radar-lit)}
@@ -202,6 +202,8 @@ body.rzing{cursor:col-resize;user-select:none}
 td.hist{white-space:pre-line;min-width:260px;font-family:var(--f-mono);font-size:11.5px;line-height:1.35}
 td.num{text-align:right;font-family:var(--f-mono)}
 td.tag{font-family:var(--f-mono);font-weight:600}
+td.tag.bl{color:var(--bl-red);font-weight:800}
+tr.frat td.tag.bl,tr.gc td.tag.bl,tr.amar td.tag.bl{color:#c00000}
 /* coluna TAG (e a seleção) sempre visível ao rolar para o lado, como o cabeçalho */
 :where(#ctl) td.selc{position:sticky;left:0;z-index:1;background:var(--panel)}
 :where(#ctl) td.tag{position:sticky;left:30px;z-index:1;background:var(--panel);box-shadow:inset -2px 0 0 var(--line)}
@@ -284,11 +286,12 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
 .deck .cg.sel rect.box{stroke:var(--signal);stroke-width:.18}
 .deck rect.pxring{fill:none;stroke:#e00000;stroke-width:.26;pointer-events:none}
 .deck .pxlayer{pointer-events:none}
-.deck .cg.px text{fill:#d00000;font-weight:800}
+.deck .cg.bl text{fill:#d00000;font-weight:800}
 .legend .pxl i{background:transparent!important;border:2px solid #e00000;box-sizing:border-box}
+.legend .bll i{background:#fff;color:#d00000;font:800 10px/18px var(--f-body);font-style:normal;text-align:center}
 .deck.adjust .cg{cursor:move}
 .deck .handle{fill:var(--signal);cursor:nwse-resize}
-.legend-tit{padding:4px 16px 8px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--ink)}.legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:10px 28px;padding:0 16px 16px;font-size:15px;overflow-x:auto}@media (max-width:900px){.legend{display:flex;flex-wrap:wrap;gap:10px 18px}}
+.legend-tit{padding:4px 16px 8px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--ink)}.blalerta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;margin:0 0 12px;padding:10px 14px;border:1px solid #f5b400;border-left-width:4px;background:rgba(245,180,0,.1)}.blalerta[hidden]{display:none}.legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:10px 28px;padding:0 16px 16px;font-size:15px;overflow-x:auto}@media (max-width:900px){.legend{display:flex;flex-wrap:wrap;gap:10px 18px}}
 .legend span{display:inline-flex;align-items:center;gap:8px}
 .legend i{width:28px;height:20px;flex:none;border:1px solid var(--line);display:inline-block}
 .scale{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
@@ -340,6 +343,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
     <a class="btn" id="b-manif" href="manifestos.html" style="align-self:center;text-decoration:none" title="Controle de Cargo Manifestos" hidden>Controle de Cargo Manifestos</a>
   </nav>
 
+  <div class="blalerta" id="blalerta" role="alert" hidden></div>
   <section class="panel" id="p-controle">
     <div class="notice" id="ro" hidden>Você está vendo em modo leitura: só quem tem acesso de edição pode alterar cargas.</div>
     <div class="bar">
@@ -495,7 +499,7 @@ async function save(id,patch,msg){
   const extra=("historico" in patch)&&!("movEm" in patch)&&top(patch.historico)&&top(patch.historico)!==top(old.historico)?{movEm:new Date().toISOString()}:{};
   const c=Object.assign({},old,patch,extra,{sync:"pendente",editadoEm:new Date().toISOString(),editadoPor:myId||null});
   if(c.deck&&hasDims(c))c.deck=fitDims(c,c.deck);
-  try{await db.doc("cargas/"+id).set(c);if(msg)toast(msg);return true}
+  try{await db.doc("cargas/"+id).set(c);state.cargas.set(id,c);if(msg)toast(msg);return true}
   catch(e){if(e&&e.code==="invalid_argument"){state.canWrite=false;applyRO()}toast(e&&e.code==="quota_exceeded"?"O banco desta página está cheio.":"Não foi possível salvar. Tente de novo.");return false}
 }
 function newId(tag,receb){let b=("c-"+key(tag)+"-"+(receb||"sem-data").replace(/-/g,"")).slice(0,180),i=b,n=2;while(state.cargas.has(i))i=b+"-"+n++;return i}
@@ -550,7 +554,7 @@ function renderRows(){
     const cls=[isFrat(c)?"frat":isGC(c)?"gc":(c.ultimaMov&&c.ultimaMov===L?"last":(c.destaque==="amarelo"?"amar":"")),c.qtd===1?"":"fora",rotFim(c)?"rotf":"",c.sync==="pendente"?"pend":"",px?"proxr":""].join(" ");
     return `<tr class="${cls}" data-id="${esc(id)}">
       <td class="selc"><input type="checkbox" class="rsel" data-id="${esc(id)}" ${state.selRows.has(id)?"checked":""} aria-label="Selecionar ${esc(c.tag)}"></td>
-      <td class="tag">${esc(c.tag)}${px?`<span class="pxb">${c.qtd===1?"&rarr; ":"&larr; "}${esc(px.unidade||"")} · ${fmtD(px.data).slice(0,5)}</span>`:""}</td>${eslTd(c)}${vencTd(c.vencimento)}<td>${esc(c.destino)}</td><td class="num">${typeof c.peso==="number"?nf(c.peso):esc(c.peso)}</td>
+      <td class="tag${eBackload(c)?" bl":""}">${esc(c.tag)}${px?`<span class="pxb">${c.qtd===1?"&rarr; ":"&larr; "}${esc(px.unidade||"")} · ${fmtD(px.data).slice(0,5)}</span>`:""}</td>${eslTd(c)}${vencTd(c.vencimento)}<td>${esc(c.destino)}</td><td class="num">${typeof c.peso==="number"?nf(c.peso):esc(c.peso)}</td>
       <td class="num">${nf(c.comp)}</td><td class="num">${nf(c.larg)}</td><td class="mono">${esc(c.ufEmb)}</td><td class="mono">${esc(c.ufDes)}</td>
       <td class="num">${c.qtd===1?'<span class="qtd1">1</span>':""}</td><td class="num">${s==null?"":nf(s)}</td><td class="num">${nf(m2)}</td>
       <td class="mono">${fmtD(c.dataReceb)}</td><td>${esc(c.local)}</td><td>${esc(c.retorno)}</td><td>${esc(c.responsavel)}</td>
@@ -775,7 +779,7 @@ async function gerarRelatorio(opts){
     T("Visualização do deck  ·  cargas a bordo do Sayan Polaris  ·  1 quadrado = 0,6 m",M,y-8,{size:9,bold:true});y-=16;
     page.drawImage(png,{x:M+(maxW-w)/2,y:y-h,width:w,height:h});page.drawRectangle({x:M+(maxW-w)/2,y:y-h,width:w,height:h,borderColor:LINE,borderWidth:.6});y-=h+12;
     const seen=new Set();let lx=M;
-    [...LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>[c,n]),["#FFFFFF","Responsável a confirmar"],["RING","Próxima movimentação"]].forEach(([c,n])=>{
+    [...LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>[c,n]),["#FFFFFF","Responsável a confirmar"],["RING","Próxima movimentação"],["#FFFFFF","Backload (nome em vermelho)"]].forEach(([c,n])=>{
       const wn=18+F.widthOfTextAtSize(pdfTxt(n),7.5);if(lx+wn>PW-M){lx=M;y-=12}
       if(c==="RING")page.drawRectangle({x:lx,y:y-1,width:8,height:8,borderColor:hex("#e00000"),borderWidth:1.4});
       else page.drawRectangle({x:lx,y:y-1,width:8,height:8,color:hex(c),borderColor:hex("#888888"),borderWidth:.4});T(n,lx+11,y,{size:7.5});lx+=wn});
@@ -858,6 +862,7 @@ async function gerarPlanilha(opts){
       wd.getCell(lr+k,2).value=nm;wd.getCell(lr+k,2).font={size:9}});
     wd.getCell(lr+8,1).border={top:{style:"medium",color:{argb:"FFE00000"}},left:{style:"medium",color:{argb:"FFE00000"}},bottom:{style:"medium",color:{argb:"FFE00000"}},right:{style:"medium",color:{argb:"FFE00000"}}};
     wd.getCell(lr+8,2).value="Próxima movimentação (contorno vermelho)";wd.getCell(lr+8,2).font={size:9};
+    wd.getCell(lr+9,1).value="TAG";wd.getCell(lr+9,1).font={size:9,bold:true,color:{argb:"FFD00000"}};wd.getCell(lr+9,1).border=BRD;wd.getCell(lr+9,2).value="Backload (nome em vermelho)";wd.getCell(lr+9,2).font={size:9};
   }
   const buf=await wb.xlsx.writeBuffer();
   return{blob:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),filename:nomeArq("Sayan Polaris Deck Cargo Plan - Tabela","xlsx"),msg:"Planilha salva."};
@@ -962,7 +967,7 @@ $("#f-add").addEventListener("submit",async e=>{
   if(!o.historico&&o.qtd===1){const d=o.dataReceb||hojeSP();o.historico=`${d.slice(8,10)}/${d.slice(5,7)} - CONVÉS POLARIS (recebida da ${org})`;o.ultimaMov=d}
   o.deck=null;o.origem="pagina";
   const id=newId(o.tag,o.dataReceb);
-  if(await save(id,o,"Carga "+o.tag+" adicionada.")){buildAdd()}
+  if(await save(id,o,"Carga "+o.tag+" adicionada.")){buildAdd();aposChegada(id)}
 });
 function openModal(title,html){$("#m-title").textContent=title;$("#m-body").innerHTML=html;$("#modal").hidden=false;const f=$("#m-body input,#m-body select");f&&f.focus()}
 function closeModal(){$("#modal").hidden=true;$("#m-body").innerHTML=""}
@@ -999,7 +1004,8 @@ function editCargo(id){
   };
   $("#f-edit").addEventListener("submit",async e=>{e.preventDefault();const o=readForm(e.target);
     if(o.qtd!==1)o.deck=null;
-    if(await save(id,o,"Carga "+o.tag+" salva."))closeModal()});
+    const topo=h=>String(h||"").split("\n")[0].trim(),antes=topo((state.cargas.get(id)||{}).historico);
+    if(await save(id,o,"Carga "+o.tag+" salva.")){closeModal();if(o.qtd===1&&topo(o.historico)!==antes)aposChegada(id)}});
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-edit]");if(b)editCargo(b.dataset.edit)});
 
@@ -1083,7 +1089,78 @@ function confirmarPx(id){
     <div class="actions"><button class="btn primary" type="submit">Confirmar movimentação</button><button class="btn" type="button" id="pk-no">Fechar</button></div></form>`);
   $("#pk-no").onclick=closeModal;
   $("#f-pxok").onsubmit=async ev=>{ev.preventDefault();const d=$("#pk-d").value,u=$("#pk-u").value.trim().toUpperCase();if(!d||!u)return;
-    if(await executarMov(id,d,u)){closeModal();renderRows()}};
+    if(await executarMov(id,d,u)){closeModal();renderRows();if(!bordo)aposChegada(id)}};
+}
+/* backload: calculado pelo histórico, para chegadas a partir de CORTE_BL (as anteriores só com resposta "sim" gravada na carga).
+   Carga a bordo, sem rotação finalizada e sem próxima movimentação que chegou de unidade diferente da PACU, ou que já saiu e voltou.
+   blResp guarda a resposta de cada chegada: {chegada:<linha do histórico>,r:"sim"|"nao"}; uma nova chegada volta a perguntar. */
+const CORTE_BL="2026-11-05";
+function chegadaInfo(c){
+  const L=parseHistLines(c),H=L.map(x=>String(x.t||x.l).toUpperCase());
+  const i=H.findIndex(t=>t.includes("POLARIS")&&!/ENVIAD[AO] DO POLARIS/.test(t));if(i<0)return null;
+  const m=H[i].match(/RECEBID[AO]\s+D[AEO]\s+([^)]+)/);const orig=m&&!/CONFIRMAR/.test(m[1])?m[1].trim():"";
+  return{orig,linha:L[i].l,data:L[i].d,saiu:H.slice(i+1).some(t=>/ENVIAD[AO] DO POLARIS|DESEMBARQUE/.test(t))};
+}
+const respBL=(c,h)=>c.blResp&&c.blResp.chegada===h.linha?c.blResp.r:null;
+const elegivelBL=c=>c.qtd===1&&!rotFim(c)&&!(c.prox&&c.prox.data);
+function eBackload(c){
+  if(!elegivelBL(c))return false;const h=chegadaInfo(c);if(!h)return false;
+  if(respBL(c,h)==="sim")return true;
+  if(!h.data||h.data<CORTE_BL)return false;
+  return h.saiu||(!!h.orig&&!/^PACU/.test(h.orig));
+}
+/* carga que veio da P-62 e ainda não teve resposta: entra no alerta de movimentação */
+function pendenteP62(c){
+  if(!elegivelBL(c))return false;const h=chegadaInfo(c);
+  return !!h&&/^P-?62\b/.test(h.orig)&&!respBL(c,h);
+}
+function renderBlAlerta(){
+  const box=$("#blalerta");if(!box)return;
+  const fila=state.canWrite?[...state.cargas.values()].filter(pendenteP62):[];
+  box.hidden=!fila.length;if(!fila.length){box.innerHTML="";return}
+  box.innerHTML=`<div><b>Alerta de movimentação</b><div><span>Cargas vindas da P-62 aguardando resposta:</span> <b class="dv">${fila.length}</b></div><div class="hint dv">${fila.map(c=>esc(c.tag)).join(" · ")}</div></div><button class="btn primary" id="bl-responder" type="button">Responder carga por carga</button>`;
+  $("#bl-responder").onclick=responderP62;
+}
+/* alerta: uma pergunta por carga, até acabar a fila */
+function responderP62(){
+  const fila=[...state.cargas].filter(([,c])=>pendenteP62(c)).map(([id])=>id);let i=0;
+  const seguir=()=>{if(i>=fila.length){closeModal();render();return}const id=fila[i++];perguntaBL(id,{pos:`${i} / ${fila.length}`,fim:seguir})};
+  seguir();
+}
+/* ao receber a carga: de outra unidade pergunta backload; se voltou da PACU pergunta se planeja a próxima movimentação */
+function aposChegada(id){
+  const c=state.cargas.get(id);if(!c||!state.canWrite||!(eBackload(c)||pendenteP62(c)))return;
+  perguntaBL(id,{fim:closeModal});
+}
+function perguntaBL(id,{pos,fim}){
+  const c=state.cargas.get(id);if(!c){fim();return}
+  const h=chegadaInfo(c)||{},daBase=!h.orig||/^PACU/.test(h.orig);
+  const de=`${h.orig?` · ${esc(h.orig)}`:""}${h.data?` · ${fmtD(h.data)}`:""}`;
+  const pular=pos?'<button class="btn" id="bl-pular" type="button">Pular</button>':"";
+  const num=pos?`<p class="hint dv">${esc(pos)}</p>`:"";
+  if(daBase){
+    openModal("Carga de volta ao Polaris",`<div class="pad alertc"><div class="alic">?</div>${num}<p><b class="dv">${esc(c.tag)}</b>${de}</p><p class="alt">Planejar a próxima movimentação?</p><p class="hint">Sem novo destino, a carga fica como backload (nome em vermelho).</p>
+      <div class="actions"><button class="btn primary" id="bl-nao">Sim, planejar</button><button class="btn" id="bl-fim">Não</button>${pular}</div></div>`);
+    $("#bl-fim").onclick=fim;
+  }else{
+    openModal("Carga recebida",`<div class="pad alertc"><div class="alic">?</div>${num}<p><b class="dv">${esc(c.tag)}</b>${de}</p><p class="alt">Esta carga é para backload?</p>
+      <div class="actions"><button class="btn primary" id="bl-sim">Sim, backload</button><button class="btn" id="bl-nao">Não, informar próximo destino</button>${pular}</div></div>`);
+    $("#bl-sim").onclick=async()=>{$("#bl-sim").disabled=true;if(await save(id,{blResp:{chegada:h.linha,r:"sim"}},c.tag+": backload (nome em vermelho).")){render();fim()}else $("#bl-sim").disabled=false};
+  }
+  $("#bl-nao").onclick=()=>pedirDestino(id,h,()=>perguntaBL(id,{pos,fim}),fim);
+  if(pos)$("#bl-pular").onclick=fim;
+}
+function pedirDestino(id,h,voltar,fim){
+  const c=state.cargas.get(id);if(!c)return;
+  openModal("Próximo destino",`<form class="form" id="f-bl" style="padding-top:12px">
+    <p style="grid-column:1/-1;margin:0"><b class="dv">${esc(c.tag)}</b></p>
+    <label>Próximo destino<input id="bl-u" required list="dl-lugares" autocomplete="off" placeholder="Ex.: P-62"></label>
+    <label>Data da próxima movimentação<input id="bl-d" type="date" required value="${amanhaSP()}"></label>
+    <p class="hint" style="grid-column:1/-1;margin:0">Sem novo destino, a carga fica como backload (nome em vermelho).</p>
+    <div class="actions"><button class="btn primary" type="submit">Programar</button><button class="btn" type="button" id="bl-voltar">Voltar</button></div></form>`);
+  $("#bl-voltar").onclick=voltar;
+  $("#f-bl").onsubmit=async ev=>{ev.preventDefault();const u=$("#bl-u").value.trim().toUpperCase(),d=$("#bl-d").value;if(!u||!d)return;
+    if(await save(id,{destino:u,blResp:{chegada:h.linha,r:"nao"},prox:{unidade:u,data:d,em:new Date().toISOString(),por:myId||null}},`${c.tag} programada para ${u} em ${fmtD(d)}.`)){render();fim()}};
 }
 /* registra de fato a movimentação planejada (histórico, última movimentação, QTD, convés) */
 async function executarMov(id,d,u){const c=state.cargas.get(id);if(!c)return false;const bordo=c.qtd===1;
@@ -1105,7 +1182,7 @@ function confirmarDoDeck(id){
     <p><b class="dv">${esc(c.tag)}</b> — ${bordo?`sai do Sayan Polaris para <b class="dv">${esc(px.unidade)}</b>`:`chega ao Sayan Polaris vindo de <b class="dv">${esc(u)}</b>`}<br>Data: <b class="dv">${fmtD(d)}</b>${px.data>hojeSP()?` <span class="hint">(planejada para ${fmtD(px.data)}; registrada como hoje)</span>`:""}</p>
     <div class="actions"><button class="btn primary" id="cd-ok">Sim, confirmar movimentação</button><button class="btn" id="cd-adj">Ajustar data ou destino</button><button class="btn" id="cd-no">Cancelar</button></div></div>`);
   $("#cd-no").onclick=closeModal;$("#cd-adj").onclick=()=>confirmarPx(id);
-  $("#cd-ok").onclick=async()=>{$("#cd-ok").disabled=true;if(await executarMov(id,d,u)){closeModal();renderRows();drawDeck()}else $("#cd-ok").disabled=false};
+  $("#cd-ok").onclick=async()=>{$("#cd-ok").disabled=true;if(await executarMov(id,d,u)){closeModal();renderRows();drawDeck();if(!bordo)aposChegada(id)}else $("#cd-ok").disabled=false};
 }
 async function cancelarPx(id){
   if(!gate())return;const c=state.cargas.get(id);if(!c||!c.prox)return;
@@ -1278,7 +1355,7 @@ function drawDeck(){
   for(const [id,c] of onboard()){
     if(!c.deck)continue;const d=(drag&&drag.id===id)?c.deck:fitDims(c,c.deck);
     const px=!!(c.prox&&c.prox.data);
-    const cg=el("g",{class:"cg"+(state.sel===id?" sel":"")+(px?" px":""),"data-id":id,tabindex:0,role:"button","aria-label":"Carga "+c.tag+(px?" — próxima movimentação":"")},svg);
+    const bl=eBackload(c);const cg=el("g",{class:"cg"+(state.sel===id?" sel":"")+(px?" px":"")+(bl?" bl":""),"data-id":id,tabindex:0,role:"button","aria-label":"Carga "+c.tag+(px?" — próxima movimentação":"")+(bl?" — backload":"")},svg);
     el("rect",{x:d.x,y:d.y,width:d.w,height:d.h,class:"box",fill:colorFor(c.responsavel)||"#ffffff"},cg);
     if(px)(drawDeck._rings||(drawDeck._rings=[])).push(d);
     wrapText(cg,c.label||c.tag,d.x,d.y,d.w,d.h);
@@ -1290,7 +1367,7 @@ function drawDeck(){
   $("#b-adddeck").textContent=semPos?`Adicionar carga ao deck (${semPos} sem posição)`:"Adicionar carga ao deck";
 }
 function renderLegend(){
-  const seen=new Set();$("#legend").innerHTML=LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join("")+`<span><i style="background:#fff"></i>Responsável a confirmar</span><span class="pxl"><i></i>Próxima movimentação</span>`;
+  const seen=new Set();$("#legend").innerHTML=LEG.filter(l=>l[2]&&!seen.has(l[2])&&seen.add(l[2])).map(([,c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join("")+`<span><i style="background:#fff"></i>Responsável a confirmar</span><span class="pxl"><i></i>Próxima movimentação</span><span class="bll"><i>TAG</i>Backload (nome em vermelho)</span>`;
 }
 function pt(evt){const p=svg.createSVGPoint();p.x=evt.clientX;p.y=evt.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
 let drag=null;
@@ -1344,6 +1421,7 @@ function cargoRows(c){
    ["Size (m²)",s==null?"":nf(s)],["No convés",d?`${nf(d.w*0.6)} × ${nf(d.h*0.6)} m`:""],["UF Embarque",c.ufEmb],["UF Desembarque",c.ufDes],
    ["Local atual",c.local],["Data de recebimento",fmtD(c.dataReceb)],["Previsão de retorno",c.retorno],["Responsável",c.responsavel],
    ["Última mov.",fmtD(c.ultimaMov)],["Próx. movimentação",c.prox&&c.prox.data?`${c.prox.unidade||""} · ${fmtD(c.prox.data)}`:""],["Observações",c.obs]];
+  if(eBackload(c))R.unshift(["Situação","Backload"]);
   return R.filter(([,v])=>v!=null&&String(v).trim()!=="");
 }
 function renderInfo(){
@@ -1436,7 +1514,7 @@ $("#b-adddeck").onclick=()=>{if(!gate())return;
     const o={tag,destino:"A CONFIRMAR",comp,larg,ufEmb:"A CONFIRMAR",qtd:1,size:comp&&larg?Math.ceil(comp*larg):null,dataReceb:d,local:"SAYAN POLARIS",responsavel:$("#n-resp").value.trim()||null,
       historico:`${d.slice(8,10)}/${d.slice(5,7)} - CONVÉS POLARIS (recebida da ${u})`,ultimaMov:d,obs:"A CONFIRMAR",deck:{x:p.x,y:p.y,w,h},label:tag,origem:"pagina",origemUnidade:u};
     if(semArea(o))o.size=0;
-    const id=newId(tag,d);if(await save(id,o,tag+" adicionada ao deck.")){closeModal();state.sel=id;if(!state.adjust)$("#b-adjust").click()}});
+    const id=newId(tag,d);if(await save(id,o,tag+" adicionada ao deck.")){closeModal();state.sel=id;if(!state.adjust)$("#b-adjust").click();aposChegada(id)}});
 };
 
 /* ---------- abas e filtros ---------- */
@@ -1461,7 +1539,7 @@ let qt;$("#q").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{
 try{const tg=new URLSearchParams(location.search).get("tag");if(tg){const ch=document.querySelector('.chip[data-f="todas"]');if(ch)ch.click();const qi=$("#q");qi.value=tg;state.q=tg;renderRows()}}catch(e){}
 $("#qh").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{state.qh=e.target.value;renderHist()},150)});
 
-function render(){renderKpis();atualizarListas();if(state.tab==="controle")renderRows();else if(state.tab==="historico")renderHist();else drawDeck()}
+function render(){renderBlAlerta();renderKpis();atualizarListas();if(state.tab==="controle")renderRows();else if(state.tab==="historico")renderHist();else drawDeck()}
 
 /* =====================================================================
    Projeto de Controle de Cargas — login próprio (Supabase), papéis e dados
@@ -1544,7 +1622,7 @@ function showRole(){
   const bl=$("#b-login");bl.textContent=state.user?"Sair":"Entrar";bl.title=state.user?("Conectado como "+state.user.email):"Entrar ou criar conta";
 }
 function applyRO(){
-  const r=state.role;$("#ro").hidden=state.canWrite;
+  const r=state.role;$("#ro").hidden=state.canWrite;renderBlAlerta();
   $("#ro").textContent=r==="pendente"?"Seu cadastro aguarda a aprovação de um administrador. Enquanto isso, você vê tudo, mas não edita."
     :r==="recusado"?"Seu acesso de edição foi recusado por um administrador. Você continua vendo tudo."
     :"Você está em modo visualização. Para editar cargas, entre com a sua conta (ou crie uma e aguarde a aprovação de um administrador).";
@@ -1732,7 +1810,7 @@ const DICT={en:{
 "Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Your current access does not allow sending requests here. Ask the owner (Sergio) to share the page with you as",
 "Acessos ao Deck Cargo Plan":"Deck Cargo Plan access","Pedidos":"Requests","Pré-aprovados":"Pre-approved","Usuários":"Users","Nenhum pedido.":"No requests.","Aprovar como Editor":"Approve as Editor","Recusar":"Decline",
 "Você. Edita tudo, publica a página e aprova acessos.":"You. Edit everything, publish the page and approve access.",
-"Legenda de cores:":"Color legend:","Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
+"Carga de volta ao Polaris":"Cargo back on Polaris","Planejar a próxima movimentação?":"Plan the next movement?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Without a new destination, the cargo stays as backload (name in red).","Sim, planejar":"Yes, plan","Carga recebida":"Cargo received","Esta carga é para backload?":"Is this cargo for backload?","Sim, backload":"Yes, backload","Não, informar próximo destino":"No, enter next destination","Próximo destino":"Next destination","Backload (nome em vermelho)":"Backload (name in red)","Situação":"Status","Alerta de movimentação":"Movement alert","Cargas vindas da P-62 aguardando resposta:":"Cargo from P-62 awaiting an answer:","Responder carga por carga":"Answer cargo by cargo","Pular":"Skip","Voltar":"Back","Legenda de cores:":"Color legend:","Responsável a confirmar":"Owner company to be confirmed","Nenhuma movimentação encontrada.":"No movements found.","Nenhuma carga neste filtro.":"No cargo in this filter.",
 "As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use “Add cargo” below to enter the first one.",
 "As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Cargo from the official spreadsheet appears here. Use \"Add cargo\" below to enter the first one.",
 "A BORDO":"ON BOARD","SAIU":"LEFT","REGISTRO":"RECORD","Buscar TAG, destino, responsável…":"Search TAG, destination, owner company…","Buscar":"Search","Filtrar por TAG…":"Filter by TAG…","Filtrar histórico":"Filter history","Filtro":"Filter",
@@ -1778,7 +1856,7 @@ const DICT={en:{
 "Seu acesso atual não permite enviar pedidos por aqui. Fale com o proprietário (Sergio) para compartilhar a página com você como":"Din nåværende tilgang tillater ikke forespørsler her. Be eieren (Sergio) dele siden med deg som",
 "Acessos ao Deck Cargo Plan":"Tilganger til Deck Cargo Plan","Pedidos":"Forespørsler","Pré-aprovados":"Forhåndsgodkjent","Usuários":"Brukere","Nenhum pedido.":"Ingen forespørsler.","Aprovar como Editor":"Godkjenn som redaktør","Recusar":"Avslå",
 "Você. Edita tudo, publica a página e aprova acessos.":"Deg. Redigerer alt, publiserer siden og godkjenner tilganger.",
-"Legenda de cores:":"Fargeforklaring:","Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
+"Carga de volta ao Polaris":"Last tilbake på Polaris","Planejar a próxima movimentação?":"Planlegge neste flytting?","Sem novo destino, a carga fica como backload (nome em vermelho).":"Uten nytt mål forblir lasten backload (navn i rødt).","Sim, planejar":"Ja, planlegg","Carga recebida":"Last mottatt","Esta carga é para backload?":"Er denne lasten for backload?","Sim, backload":"Ja, backload","Não, informar próximo destino":"Nei, oppgi neste mål","Próximo destino":"Neste mål","Backload (nome em vermelho)":"Backload (navn i rødt)","Situação":"Status","Alerta de movimentação":"Flyttevarsel","Cargas vindas da P-62 aguardando resposta:":"Last fra P-62 som venter på svar:","Responder carga por carga":"Svar last for last","Pular":"Hopp over","Voltar":"Tilbake","Legenda de cores:":"Fargeforklaring:","Responsável a confirmar":"Ansvarlig selskap ikke bekreftet","Nenhuma movimentação encontrada.":"Ingen bevegelser funnet.","Nenhuma carga neste filtro.":"Ingen last i dette filteret.",
 "As cargas da planilha oficial aparecem aqui. Use “Adicionar carga” abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
 "As cargas da planilha oficial aparecem aqui. Use \"Adicionar carga\" abaixo para lançar a primeira.":"Last fra det offisielle regnearket vises her. Bruk «Legg til last» nedenfor for å registrere den første.",
 "A BORDO":"OM BORD","SAIU":"GIKK","REGISTRO":"POST","Buscar TAG, destino, responsável…":"Søk TAG, destinasjon, ansvarlig…","Buscar":"Søk","Filtrar por TAG…":"Filtrer på TAG…","Filtrar histórico":"Filtrer historikk","Filtro":"Filter",
