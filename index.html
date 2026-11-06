@@ -126,7 +126,7 @@ html[data-visual="neo"] .deck .cg rect.box{stroke:var(--neo-navy-900)}
 .meter i{display:block;height:100%;background:var(--accent)}
 .meter i.over{background:var(--warn,#c0392b)}
 .kpct{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
-.kpi.pend b{color:var(--warn)}
+
 .kpimix{display:flex;gap:14px;align-items:center}
 .kpimix .mix{list-style:none;margin:0;padding:0 0 0 16px;border-left:1px solid var(--line);display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:14px;align-items:center}
 .kpimix .mix li{display:contents}
@@ -329,8 +329,9 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
       <button type="button" class="kpi kbtn" data-grp="nav" aria-pressed="false" title="GC + Fratelli · mostrar na tabela só as cargas do navio a bordo"><small>Navio</small><b id="k-nav">–</b></button>
       <button type="button" class="kpi kbtn" data-grp="tot" aria-pressed="false" title="Mostrar na tabela todas as cargas a bordo"><small>Total</small><b id="k-qtd">–</b></button>
       <div class="kpi" title="Área contratada pela Petrobras: 200 m²"><small>Ocupação Petrobras</small><b id="k-pbm2">–</b><span class="kpct" id="k-pbp"></span><div class="meter"><i id="k-pbbar" style="width:0"></i></div></div>
+      <div class="kpi" title="Área de carga ocupada entre a linha das baias 8 e 9 e a linha central da baia 13: 356,4 m²"><small>Ocupação total</small><b id="k-totm2">–</b><span class="kpct" id="k-totp"></span><div class="meter"><i id="k-totbar" style="width:0"></i></div></div>
       <div class="kpi"><small>Última movimentação</small><b id="k-last">–</b></div>
-      <div class="kpi pend"><small>Aguardando Excel</small><b id="k-pend">–</b></div>
+      
     </div>
   </header>
 
@@ -505,6 +506,19 @@ async function save(id,patch,msg){
 function newId(tag,receb){let b=("c-"+key(tag)+"-"+(receb||"sem-data").replace(/-/g,"")).slice(0,180),i=b,n=2;while(state.cargas.has(i))i=b+"-"+n++;return i}
 
 /* ---------- KPIs ---------- */
+/* ocupação total: área coberta pelas cargas a bordo e itens fixos no trecho, pelo desenho do convés. Só conta a parte dentro do trecho, e sobreposição conta uma vez. */
+const OCUP_X0=2,OCUP_X1=35,AREA_OCUP=(OCUP_X1-OCUP_X0)*DECK_H*0.36;
+function ocupacaoTotal(){
+  const R=[...state.fixos,...onboard().map(([,c])=>c.deck&&fitDims(c,c.deck)).filter(Boolean)];
+  const X=[...new Set([OCUP_X0,OCUP_X1,...R.flatMap(r=>[r.x,r.x+r.w]).filter(v=>v>OCUP_X0&&v<OCUP_X1)])].sort((a,b)=>a-b);
+  let total=0;
+  for(let i=0;i<X.length-1;i++){
+    let fim=-Infinity,alt=0;
+    for(const r of R.filter(r=>r.x<X[i+1]&&r.x+r.w>X[i]).sort((a,b)=>a.y-b.y)){const y0=Math.max(r.y,fim),y1=r.y+r.h;if(y1>y0){alt+=y1-y0;fim=y1}}
+    total+=alt*(X[i+1]-X[i]);
+  }
+  return total*0.36;
+}
 function renderKpis(){
   const on=onboard();const m2=on.reduce((s,[,c])=>s+(sizeOf(c)||0),0);
   $("#k-qtd").textContent=on.length;
@@ -515,7 +529,9 @@ function renderKpis(){
   $("#k-pbm2").textContent=nf(pbm2,0)+" m²";$("#k-pbp").textContent=nf(pbp,1)+"% de "+AREA_PB+" m²";
   const pb=$("#k-pbbar");pb.style.width=Math.min(100,pbp).toFixed(1)+"%";pb.classList.toggle("over",pbp>100);
   $("#k-last").textContent=fmtD(lastDate())||"–";
-  $("#k-pend").textContent=[...state.cargas.values()].filter(c=>c.sync==="pendente").length;
+  const ot=ocupacaoTotal(),otp=ot/AREA_OCUP*100;
+  $("#k-totm2").textContent=nf(ot,0)+" m²";$("#k-totp").textContent=nf(otp,1)+"% de "+nf(AREA_OCUP,1)+" m²";
+  const tb=$("#k-totbar");tb.style.width=Math.min(100,otp).toFixed(1)+"%";tb.classList.toggle("over",otp>100);
   const sy=state.meta.sincronizadoEm;const un=$("#updnote");
   if(sy){const dd=new Date(sy);const f=o=>new Intl.DateTimeFormat("pt-BR",Object.assign({timeZone:"America/Sao_Paulo"},o)).format(dd);
     const txt=`Nota: Atualizado em ${f({day:"2-digit"})}.${f({month:"2-digit"})}.${f({year:"numeric"})} às ${f({hour:"2-digit",minute:"2-digit",hour12:false})} (BRT)`;
@@ -1866,7 +1882,7 @@ state.canWrite=false;state.role="visitante";applyRO();showRole();
 "use strict";
 const DICT={en:{
 "MPSV · Controle de cargas e convés":"MPSV · Cargo control and deck","Carregando dados…":"Loading data…","Verificando acesso…":"Checking access…",
-"A bordo":"On board","Ocupação do convés":"Deck occupancy","Última movimentação":"Last movement","Aguardando Excel":"Waiting for Excel",
+"A bordo":"On board","Ocupação do convés":"Deck occupancy","Última movimentação":"Last movement","Ocupação total":"Total occupancy",
 "Controle de cargas":"Cargo control","Histórico":"History","Visualizar deck":"View deck",
 "Você está vendo em modo leitura: só quem tem acesso de edição pode alterar cargas.":"You are in read-only mode: only users with edit access can change cargo.",
 "Você está em modo visualização. Ao clicar em editar ou adicionar, você pode pedir acesso de Colaborador.":"You are in view mode. When you click edit or add, you can request Contributor access.",
@@ -1912,7 +1928,7 @@ const DICT={en:{
 "Pedido enviado ao proprietário.":"Request sent to the owner.","Sem conexão com o banco desta página.":"No connection to this page's database.","Seu acesso é somente visualização.":"Your access is view-only.",
 "Não foi possível salvar. Tente de novo.":"Could not save. Try again.","O banco desta página está cheio.":"This page's database is full.","Carga girada.":"Cargo rotated.","Pedido recusado.":"Request declined.",
 "Fratelli":"Fratelli","Petrobras / ACC / TLT":"Petrobras / ACC / TLT","GC Operações":"GC Operações"},no:{"MPSV · Controle de cargas e convés":"MPSV · Lastkontroll og dekk","Carregando dados…":"Laster data…","Verificando acesso…":"Sjekker tilgang…",
-"A bordo":"Om bord","Ocupação do convés":"Dekksbelegg","Última movimentação":"Siste bevegelse","Aguardando Excel":"Venter på Excel",
+"A bordo":"Om bord","Ocupação do convés":"Dekksbelegg","Última movimentação":"Siste bevegelse","Ocupação total":"Samlet belegg",
 "Controle de cargas":"Lastkontroll","Histórico":"Historikk","Visualizar deck":"Vis dekk",
 "Você está vendo em modo leitura: só quem tem acesso de edição pode alterar cargas.":"Du er i lesemodus: bare brukere med redigeringstilgang kan endre last.",
 "Você está em modo visualização. Ao clicar em editar ou adicionar, você pode pedir acesso de Colaborador.":"Du er i visningsmodus. Når du klikker rediger eller legg til, kan du be om bidragsytertilgang.",
