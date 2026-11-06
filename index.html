@@ -329,7 +329,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
       <button type="button" class="kpi kbtn" data-grp="nav" aria-pressed="false" title="GC + Fratelli · mostrar na tabela só as cargas do navio a bordo"><small>Navio</small><b id="k-nav">–</b></button>
       <button type="button" class="kpi kbtn" data-grp="tot" aria-pressed="false" title="Mostrar na tabela todas as cargas a bordo"><small>Total</small><b id="k-qtd">–</b></button>
       <div class="kpi" title="Área contratada pela Petrobras: 200 m²"><small>Ocupação Petrobras</small><b id="k-pbm2">–</b><span class="kpct" id="k-pbp"></span><div class="meter"><i id="k-pbbar" style="width:0"></i></div></div>
-      <div class="kpi" title="Conta a carga da linha das baias 8 e 9 até o stern gate. Área útil: da terceira coluna a partir do stern gate até a linha das baias 8 e 9, 345,6 m²"><small>Ocupação total</small><b id="k-totm2">–</b><span class="kpct" id="k-totp"></span><div class="meter"><i id="k-totbar" style="width:0"></i></div></div>
+      <div class="kpi" title="Conta a carga da linha das baias 8 e 9 até o stern gate. Área útil: da terceira coluna a partir do stern gate até a linha das baias 8 e 9, sem o recorte junto a essa linha: 331,0 m²"><small>Ocupação total</small><b id="k-totm2">–</b><span class="kpct" id="k-totp"></span><div class="meter"><i id="k-totbar" style="width:0"></i></div></div>
       <div class="kpi"><small>Última movimentação</small><b id="k-last">–</b></div>
       
     </div>
@@ -507,8 +507,8 @@ function newId(tag,receb){let b=("c-"+key(tag)+"-"+(receb||"sem-data").replace(/
 
 /* ---------- KPIs ---------- */
 /* ocupação total, pelo desenho do convés. Contagem: cargas a bordo e itens fixos da linha das baias 8 e 9 até o stern gate; só conta a parte dentro do trecho, e sobreposição conta uma vez.
-   Área útil (base do percentual): da terceira coluna a partir do stern gate até a mesma linha. Não limita onde a carga pode ser colocada. */
-const OCUP_X0=0,OCUP_X1=35,AREA_OCUP=(OCUP_X1-3)*DECK_H*0.36;
+   Área útil (base do percentual): da terceira coluna a partir do stern gate até a mesma linha, sem o recorte junto à linha (de x 32,42 até a linha, de y 14,25 até o fim do convés). Não limita onde a carga pode ser colocada. */
+const OCUP_X0=0,OCUP_X1=35,AREA_OCUP=((OCUP_X1-3)*DECK_H-(OCUP_X1-32.42)*(DECK_H-14.25))*0.36;
 function ocupacaoTotal(){
   const R=[...state.fixos,...onboard().map(([,c])=>c.deck&&fitDims(c,c.deck)).filter(Boolean)];
   const X=[...new Set([OCUP_X0,OCUP_X1,...R.flatMap(r=>[r.x,r.x+r.w]).filter(v=>v>OCUP_X0&&v<OCUP_X1)])].sort((a,b)=>a-b);
