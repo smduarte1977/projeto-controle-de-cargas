@@ -291,7 +291,7 @@ svg.deck{display:block;width:100%;min-width:900px;height:auto;user-select:none;t
 .stchip{display:inline-block;padding:0 7px;font-family:var(--f-body);font-size:11px;font-weight:800;line-height:18px;letter-spacing:.02em;text-transform:uppercase;border:1px solid transparent;border-radius:3px;font-style:normal}td.tag .stchip{display:table;margin:3px 0 0}tr.pend td.tag:has(.stchip)::after{position:absolute;top:9px;right:7px;margin:0}.stchip.st-pend,.blstatus b.stchip.st-pend{background:#ffe600;color:#14212e;border-color:#b89f00}.stchip.st-bl,.blstatus b.stchip.st-bl{background:#c00000;color:#fff}.stchip.st-trans,.blstatus b.stchip.st-trans{background:#0b7f5a;color:#fff}.legend.legend-status{grid-template-rows:auto}.legend i.stchip{padding:0}.deck rect.st-et{stroke:#14212e;stroke-width:.04}.deck rect.st-et.st-pend{fill:#ffe600}.deck rect.st-et.st-bl{fill:#c00000}.deck rect.st-et.st-trans{fill:#0b7f5a}.deck .cg text.st-tx{font-size:.44px;font-weight:800;text-transform:uppercase}.deck .cg text.st-tx.st-pend{fill:#14212e}.deck .cg text.st-tx.st-bl,.deck .cg text.st-tx.st-trans{fill:#fff}.deck .st-lig-f{stroke:#14212e;stroke-width:.17}.deck .st-lig{stroke:#fff;stroke-width:.07}.deck rect.st-hit{fill:transparent;pointer-events:all}.deck .cg.callout text:not(.st-tx){fill:var(--ink);paint-order:stroke;stroke:var(--deck);stroke-width:.2}.deck .cg.callout.bl text:not(.st-tx){fill:var(--bl-red)}
 .deck.adjust .cg{cursor:move}
 .deck .handle{fill:var(--signal);cursor:nwse-resize}
-.legend-tit{padding:4px 16px 8px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--ink)}.blalerta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;margin:0 0 12px;padding:10px 14px;border:1px solid #f5b400;border-left-width:4px;background:rgba(245,180,0,.1)}.blalerta[hidden]{display:none}.blstatus{display:grid;gap:4px;margin:6px 0 8px;font-size:14px}.blstatus span{color:var(--muted)}.blstatus b{color:var(--bl-red);font-weight:800}.bluf{justify-self:start;padding:2px 8px;background:#ffe600;color:#14212e;font-weight:700}.form input.uf-falta{background:#ffe600;color:#14212e;border-color:#b89f00}.legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:10px 28px;padding:0 16px 16px;font-size:15px;overflow-x:auto}@media (max-width:900px){.legend{display:flex;flex-wrap:wrap;gap:10px 18px}}
+.legend-tit{padding:4px 16px 8px;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--ink)}.blalerta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;margin:0 0 12px;padding:10px 14px;border:1px solid #f5b400;border-left-width:4px;background:rgba(245,180,0,.1)}.blalerta[hidden]{display:none}.blstatus{display:grid;gap:4px;margin:6px 0 8px;font-size:14px}.blstatus span{color:var(--muted)}.blstatus b{color:var(--bl-red);font-weight:800}.blstatus select.stsel{width:auto;min-height:0;height:auto;margin:0;padding:2px 4px;font-family:var(--f-body);font-size:11px;font-weight:800;text-transform:uppercase;border:1px solid var(--line);border-radius:3px;background:var(--panel,#fff);color:var(--ink);cursor:pointer}.blstatus select.stsel.st-pend{background:#ffe600;color:#14212e;border-color:#b89f00}.blstatus select.stsel.st-bl{background:#c00000;color:#fff;border-color:#c00000}.blstatus select.stsel.st-trans{background:#0b7f5a;color:#fff;border-color:#0b7f5a}.blstatus select.stsel option{background:#fff;color:#14212e}@media (max-width:900px){.blstatus select.stsel{font-size:16px}}.bluf{justify-self:start;padding:2px 8px;background:#ffe600;color:#14212e;font-weight:700}.form input.uf-falta{background:#ffe600;color:#14212e;border-color:#b89f00}.legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:10px 28px;padding:0 16px 16px;font-size:15px;overflow-x:auto}@media (max-width:900px){.legend{display:flex;flex-wrap:wrap;gap:10px 18px}}
 .legend span{display:inline-flex;align-items:center;gap:8px}
 .legend i{width:28px;height:20px;flex:none;border:1px solid var(--line);display:inline-block}
 .scale{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
@@ -990,7 +990,9 @@ function editCargo(id){
    ${state.canWrite?`<div class="danger"><span class="hint">Correções</span><button class="btn" type="button" id="e-undo" ${String(c.historico||"").trim()?"":"disabled"}>Excluir último movimento</button><button class="btn dangerbtn" type="button" id="e-del">Excluir registro total da carga</button></div>`:""}</form>`);
   $("#e-cancel").onclick=closeModal;
   /* enquanto faltar a UF de desembarque de uma carga em backload, o campo fica em amarelo; preencheu, volta ao normal */
-  const campoUF=$("#e-ufDes"),marcarUF=()=>{const vis=Object.assign({},c,{ufDes:campoUF.value});campoUF.classList.toggle("uf-falta",eBackload(c)&&faltaUF(vis));$("#e-status").innerHTML=statusHtml(vis)};
+  const stInicial=stManual(c)||"";let stEscolha=stInicial;
+  const campoUF=$("#e-ufDes"),marcarUF=()=>{const vis=Object.assign({},c,{ufDes:campoUF.value,statusManual:stValor(c,stEscolha)});campoUF.classList.toggle("uf-falta",eBackload(vis)&&faltaUF(vis));$("#e-status").innerHTML=statusHtml(vis)};
+  $("#e-status").addEventListener("change",e=>{if(e.target.matches(".stsel")){stEscolha=e.target.value;marcarUF();$("#e-status .stsel").focus()}});
   campoUF.addEventListener("input",marcarUF);marcarUF();
   if(state.canWrite){$("#e-undo").onclick=()=>undoLastMove(id);$("#e-del").onclick=()=>deleteCargo(id)}
   if(!state.canWrite){document.querySelectorAll("#f-edit input,#f-edit select,#f-edit textarea").forEach(x=>x.disabled=true);$("#f-edit button[type=submit]").hidden=true;$("#e-cancel").textContent="Fechar";
@@ -1005,10 +1007,10 @@ function editCargo(id){
     $("#e-qtd").value=k==="on"?"1":"";$("#e-local").value=k==="on"?"SAYAN POLARIS":u;
     toast("Movimentação incluída — clique em Salvar.");
   };
-  $("#f-edit").addEventListener("submit",async e=>{e.preventDefault();const o=readForm(e.target);
+  $("#f-edit").addEventListener("submit",async e=>{e.preventDefault();const o=readForm(e.target);if(stEscolha!==stInicial)o.statusManual=stValor(Object.assign({},c,o),stEscolha);
     if(o.qtd!==1)o.deck=null;
     const topo=h=>String(h||"").split("\n")[0].trim(),antes=topo((state.cargas.get(id)||{}).historico);
-    if(await save(id,o,"Carga "+o.tag+" salva.")){closeModal();if(o.qtd===1&&topo(o.historico)!==antes)aposChegada(id)}});
+    if(await save(id,o,"Carga "+o.tag+" salva.")){closeModal();render();if(o.qtd===1&&topo(o.historico)!==antes)aposChegada(id)}});
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-edit]");if(b)editCargo(b.dataset.edit)});
 
@@ -1106,7 +1108,12 @@ function chegadaInfo(c){
 }
 const respBL=(c,h)=>c.blResp&&c.blResp.chegada===h.linha?c.blResp.r:null;
 const elegivelBL=c=>c.qtd===1&&!rotFim(c)&&!(c.prox&&c.prox.data);
+/* status escolhido à mão na carga: vale enquanto a carga não tiver nova chegada; statusManual={r:"pend"|"bl"|"trans",chegada:<linha do histórico>} */
+const chegadaChave=c=>{const h=chegadaInfo(c);return h?h.linha:""};
+const stManual=c=>{const m=c.statusManual;return c.qtd===1&&m&&STATUS[m.r]&&m.chegada===chegadaChave(c)?m.r:null};
+const stValor=(c,r)=>r?{r,chegada:chegadaChave(c)}:null;
 function eBackload(c){
+  const m=stManual(c);if(m)return m==="bl";
   if(!elegivelBL(c))return false;const h=chegadaInfo(c);if(!h)return false;
   if(respBL(c,h)==="sim")return true;
   if(!h.data||h.data<CORTE_BL)return false;
@@ -1116,18 +1123,25 @@ function eBackload(c){
    Com rotação finalizada não há status. */
 const STATUS={pend:{nome:"Pendente",cls:"st-pend"},bl:{nome:"Backload",cls:"st-bl"},trans:{nome:"Transbordo",cls:"st-trans"}};
 function statusCarga(c){
+  const m=stManual(c);return m?STATUS[m]:statusAuto(c);
+}
+function statusAuto(c){
   if(c.qtd!==1||rotFim(c))return null;
   if(c.prox&&c.prox.data)return /^(PACU|BMAC|BASE)/.test(String(c.prox.unidade||"").toUpperCase())?STATUS.bl:STATUS.trans;
-  return eBackload(c)?STATUS.bl:STATUS.pend;
+  return eBackload(Object.assign({},c,{statusManual:null}))?STATUS.bl:STATUS.pend;
 }
 /* UF de desembarque: falta quando está vazio ou "A CONFIRMAR" */
 const faltaUF=c=>{const v=String(c.ufDes||"").trim().toUpperCase();return !v||v==="A CONFIRMAR"};
+function stLista(c,st){
+  const m=stManual(c),auto=statusAuto(c);
+  return `<select class="stsel ${st?st.cls:""}" aria-label="Alterar status da carga"><option value=""${m?"":" selected"}>Automático (${auto?auto.nome:"sem status"})</option>${Object.keys(STATUS).map(k=>`<option value="${k}"${m===k?" selected":""}>${STATUS[k].nome}</option>`).join("")}</select>`;
+}
 function statusHtml(c){
-  const st=statusCarga(c);if(!st)return "";
-  return `<div class="blstatus"><div><span>Status:</span> <b class="stchip ${st.cls}">${st.nome}</b></div>${eBackload(c)&&faltaUF(c)?'<div class="bluf">Pendente de UF de desembarque</div>':""}</div>`;
+  const st=statusCarga(c);if(!st&&!(state.canWrite&&c.qtd===1))return "";
+  return `<div class="blstatus"><div><span>Status:</span> ${state.canWrite&&c.qtd===1?stLista(c,st):`<b class="stchip ${st.cls}">${st.nome}</b>`}</div>${eBackload(c)&&faltaUF(c)?'<div class="bluf">Pendente de UF de desembarque</div>':""}</div>`;
 }
 /* carga que veio da P-62 e ainda não teve resposta: entra no alerta de movimentação */
-function pendenteP62(c){
+function pendenteP62(c){if(stManual(c))return false;
   if(!elegivelBL(c))return false;const h=chegadaInfo(c);
   return !!h&&/^P-?62\b/.test(h.orig)&&!respBL(c,h);
 }
@@ -1146,7 +1160,7 @@ function responderP62(){
 }
 /* ao receber a carga: de outra unidade pergunta backload; se voltou da PACU pergunta se planeja a próxima movimentação */
 function aposChegada(id){
-  const c=state.cargas.get(id);if(!c||!state.canWrite||!(eBackload(c)||pendenteP62(c)))return;
+  const c=state.cargas.get(id);if(!c||!state.canWrite||stManual(c)||!(eBackload(c)||pendenteP62(c)))return;
   perguntaBL(id,{fim:closeModal});
 }
 function perguntaBL(id,{pos,fim}){
@@ -1507,6 +1521,8 @@ function renderInfo(){
    ${c.historico?`<dt>Movimentações</dt><dd class="dv histv">${esc(c.historico)}</dd>`:""}</dl>
    ${c.sync==="pendente"?`<div class="pendv">Alteração pendente${c.editadoEm?` · <span class="dv">${esc(fmtDT(c.editadoEm))}</span>`:""}</div>`:""}
    <div class="acts"><button class="btn" data-ia="cargo">${state.canWrite?"Editar dados":"Ver ficha"}</button>${state.canWrite&&c.deck?'<button class="btn" data-ia="pos">Editar posição</button>':""}${state.canWrite?`<button class="btn primary" data-ia="mov" title="${c.prox&&c.prox.unidade?"Planejada: "+esc(c.prox.unidade)+" · "+fmtD(c.prox.data):"Sem movimentação planejada"}">Confirmar movimentação</button>`:""}<button class="btn" data-ia="x">Fechar</button></div>`;
+  const lista=box.querySelector(".stsel");if(lista)lista.onchange=async()=>{const r=lista.value;lista.disabled=true;
+    await save(state.sel,{statusManual:stValor(c,r)},r?`${c.tag}: status ${STATUS[r].nome}.`:`${c.tag}: status automático.`);render()};
   box.querySelectorAll("[data-ia]").forEach(b=>b.onclick=()=>{const a=b.dataset.ia,id=state.sel;
     if(a==="cargo")editCargo(id);else if(a==="pos")editShape(id);else if(a==="mov")confirmarDoDeck(id);else{state.sel=null;drawDeck()}});
 }
